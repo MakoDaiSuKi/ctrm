@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:util="http://www.springframework.org/schema/util"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans
+		http://www.springframework.org/schema/beans/spring-beans-4.1.xsd
+		http://www.springframework.org/schema/util
+        http://www.springframework.org/schema/util/spring-util-4.0.xsd">
+
+	<!-- 引入配置文件 -->
+	<util:properties id="ctrm" location="classpath:conf.properties" />
+	<!-- 引入配置文件 -->
+	<bean id="propertyConfigurer"
+		class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer">
+		<property name="locations">
+			<list>
+				<value>classpath:conf.properties</value>
+			</list>
+		</property>
+	</bean>
+
+	<!-- 数据源的配置通过代码配置 -->
+	<bean id="dynamicdatasource" class="com.smm.ctrm.hibernate.DataSource.DynamicDataSource">
+		<property name="targetDataSources">
+			<map key-type="java.lang.String">
+			</map>
+		</property>
+	</bean>
+
+	<!--hibernate5配置 -->
+	<bean id="sessionFactory"
+		class="org.springframework.orm.hibernate5.LocalSessionFactoryBean" depends-on="autoInterceptor">
+		<property name="dataSource" ref="dynamicdatasource" />
+		<property name="entityInterceptor" ref="staticDelegateInterceptor" />
+		<property name="hibernateProperties">
+			<props>
+				<!-- hibernate会自行判断数据库类型 -->
+				<prop key="hibernate.dialect">${hibernate.dialect}</prop>
+				<prop key="hibernate.show_sql">${hibernate.show_sql}</prop>
+				<prop key="hibernate.format_sql">${hibernate.format_sql}</prop>
+				<prop key="hibernate.hbm2ddl.auto">${hibernate.hbm2ddl.auto}</prop>
+				<prop key="hibernate.max_fetch_depth">3</prop>
+				
+				<!-- 启用二级缓存 -->
+				<prop key="hibernate.cache.use_query_cache">${hibernate.cache.use_query_cache}</prop>
+				<prop key="hibernate.cache.use_second_level_cache">${hibernate.cache.use_second_level_cache}</prop>
+				<prop key="hibernate.cache.region.factory_class">${hibernate.cache.region.factory_class}</prop>
+				<prop key="hibernate.cache.provider_configuration_file_resource_path">${hibernate.cache.provider_configuration_file_resource_path}</prop>
+				<!-- <prop key="hibernate.connection.release_mode">after_transaction</prop> -->
+			</props>
+		</property>
+		<property name="packagesToScan" value="com.smm.ctrm.domain" />
+	</bean>
+	<bean id="staticDelegateInterceptor" class="com.smm.ctrm.hibernate.Interceptor.StaticDelegateInterceptor"/>
+	<bean id="autoInterceptor" class="com.smm.ctrm.hibernate.Interceptor.MyInterceptor"/>
+
+	<!-- 配置事务管理器 -->
+	<bean id="transactionManager"
+		class="org.springframework.orm.hibernate5.HibernateTransactionManager">
+		<property name="sessionFactory" ref="sessionFactory" />
+	</bean>
+
+	<bean id="transactionProxy"
+		class="org.springframework.transaction.interceptor.TransactionProxyFactoryBean"
+		abstract="true">
+		<property name="transactionManager" ref="transactionManager" />
+		<property name="transactionAttributes">
+			<props>
+				<prop key="txAdd*">PROPAGATION_REQUIRED,-Exception</prop>
+				<prop key="txSave*">PROPAGATION_REQUIRED,-Exception</prop>
+				<prop key="txDel*">PROPAGATION_REQUIRED,-Exception</prop>
+				<prop key="*">PROPAGATION_NOT_SUPPORTED,readOnly</prop>
+			</props>
+		</property>
+	</bean>
+
+</beans>
