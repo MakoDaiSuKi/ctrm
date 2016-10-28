@@ -6,6 +6,7 @@ import java.util.Date;
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.Table;
+import javax.persistence.Transient;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.smm.ctrm.domain.HibernateEntity;
@@ -108,6 +109,56 @@ public class PositionDelivery extends HibernateEntity {
 	private String CustomerId;
 	
 
+	@Transient
+	@JsonProperty(value = "Product")
+	private String Product;
+	
+	
+	@Transient
+	@JsonProperty(value = "SpecId")
+	private String SpecId;
+	
+	
+	/**
+	 * 品级Id
+	 */
+	@Transient
+	@JsonProperty(value = "GradeSetIds")
+	private String GradeSetIds;
+	
+	/**
+	 * 可多选品牌，逗号隔开
+	 */
+	@Transient
+	@JsonProperty(value = "BrandIds")
+	private String BrandIds;
+	
+	/**
+	 * 多对一：原产地
+	 */
+	@Transient
+	@JsonProperty(value = "OriginId")
+	private String OriginId;
+	
+	
+	@Transient
+	@JsonProperty(value = "BrandName")
+	private String BrandName;
+	
+	
+	@Transient
+	@JsonProperty(value = "ProjectName")
+	private String ProjectName;
+	
+
+	public String getBrandName() {
+		return BrandName;
+	}
+
+	public void setBrandName(String brandName) {
+		BrandName = brandName;
+	}
+
 	public String getPosition4BrokerNo() {
 		return Position4BrokerNo;
 	}
@@ -202,6 +253,54 @@ public class PositionDelivery extends HibernateEntity {
 
 	public void setPosition4BrokerId(String position4BrokerId) {
 		Position4BrokerId = position4BrokerId;
+	}
+
+	public String getProduct() {
+		return Product;
+	}
+
+	public void setProduct(String product) {
+		Product = product;
+	}
+
+	public String getSpecId() {
+		return SpecId;
+	}
+
+	public void setSpecId(String specId) {
+		SpecId = specId;
+	}
+
+	public String getGradeSetIds() {
+		return GradeSetIds;
+	}
+
+	public void setGradeSetIds(String gradeSetIds) {
+		GradeSetIds = gradeSetIds;
+	}
+
+	public String getBrandIds() {
+		return BrandIds;
+	}
+
+	public void setBrandIds(String brandIds) {
+		BrandIds = brandIds;
+	}
+
+	public String getOriginId() {
+		return OriginId;
+	}
+
+	public void setOriginId(String originId) {
+		OriginId = originId;
+	}
+
+	public String getProjectName() {
+		return ProjectName;
+	}
+
+	public void setProjectName(String projectName) {
+		ProjectName = projectName;
 	}
 	
 }

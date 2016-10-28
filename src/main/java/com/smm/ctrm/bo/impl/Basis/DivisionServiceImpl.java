@@ -189,10 +189,10 @@ public class DivisionServiceImpl implements DivisionService {
 			/**
 			 * 组装Children
 			 */
-			DetachedCriteria dc=DetachedCriteria.forClass(Division.class);
+			/*DetachedCriteria dc=DetachedCriteria.forClass(Division.class);
 			dc.add(Restrictions.eq("ParentId", ct.getId()));
 			List<Division> childrenDiv=this.repository.GetQueryable(Division.class).where(dc).toList();
-			ct.setChildren(childrenDiv);
+			ct.setChildren(childrenDiv);*/
 			
 			/**
 			 * 不进行递归，只取一级

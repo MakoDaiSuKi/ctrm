@@ -55,6 +55,18 @@ public class Storage extends HibernateEntity {
 	@JsonProperty(value = "Premium")
 	private BigDecimal Premium;
 	/**
+	 * 市场价格
+	 */
+	@Transient
+	@JsonProperty(value = "Price4Market")
+	private BigDecimal Price4Market;
+	/**
+	 * 点价
+	 */
+	@Transient
+	@JsonProperty(value = "IsPriced")
+	private Boolean IsPriced;
+	/**
 	 * 预计销售升贴水
 	 */
 	@Column(name = "Premium4EstSale")
@@ -2493,6 +2505,22 @@ public class Storage extends HibernateEntity {
 
 	public void setGradeSetName(String gradeSetName) {
 		GradeSetName = gradeSetName;
+	}
+
+	public Boolean getIsPriced() {
+		return IsPriced;
+	}
+
+	public void setIsPriced(Boolean isPriced) {
+		IsPriced = isPriced;
+	}
+
+	public BigDecimal getPrice4Market() {
+		return Price4Market;
+	}
+
+	public void setPrice4Market(BigDecimal price4Market) {
+		Price4Market = price4Market;
 	}
 
 

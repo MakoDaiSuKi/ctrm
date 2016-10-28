@@ -142,9 +142,9 @@ public class ValidTokenHelper {
 
 	@Before("sleeppoint()")
 	public void beforeSleep(JoinPoint point) {
-		Object targetObj = point.getTarget();
-		String methodName = point.getSignature().getName();
-		log.info("##即将调用Service:" + targetObj.getClass().getName() + ",##方法为:" + methodName + "##");
+//		Object targetObj = point.getTarget();
+//		String methodName = point.getSignature().getName();
+//		log.info("##即将调用Service:" + targetObj.getClass().getName() + ",##方法为:" + methodName + "##");
 	}
 
 	@AfterReturning("sleeppoint()")

@@ -81,7 +81,8 @@ public class ContractApiController {
 	@RequestMapping("GetById")
 	@ResponseBody
 	public ActionResult<Contract> GetById(HttpServletRequest request, @RequestBody String id) {
-		try {			return contractService.GetById(id);
+		try {			
+			return contractService.GetById(id);
 		} catch (RuntimeException ex) {
 			logger.error(ex.getMessage(), ex);
 			return new ActionResult<>(false, ex.getMessage());
@@ -816,14 +817,14 @@ public class ContractApiController {
 		}
 	}
 	
-	/** 桑基图
+		/** 桑基图
 	 * 
 	 * @param param
 	 * @return
 	 */
 	@RequestMapping("getSanKey")
 	@ResponseBody
-	public ActionResult<String> getSanKey(ContractParams param) {
+	public ActionResult<String> getSanKey(@RequestBody ContractParams param) {
 		try {
 			return contractService.getSanKey(param);
 		} catch (Exception ex) {

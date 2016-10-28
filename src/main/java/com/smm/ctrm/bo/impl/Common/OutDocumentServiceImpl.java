@@ -1329,7 +1329,7 @@ public class OutDocumentServiceImpl implements OutDocumentService {
 				map.put("Card" + String.valueOf(i + 1), String.valueOf(curShip.getDeliveryManIDCard().charAt(i)));
 			}
 		}
-		map.put("车辆编号", curShip.getTruckNo());
+		map.put("车辆编号", curShip.getDeliveryTruckNo());
 
 		map.put("备注", curShip.getRemark());
 		return map;

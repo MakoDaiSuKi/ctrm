@@ -137,9 +137,21 @@ public class LotApiController {
 		
 		// 是否套利
 		if(param.getIsArbitrage() != null) {
-			criteria.add(Restrictions.eq("IsArbitrage", param.getIsArbitrage()));
+			if(param.getIsArbitrage()) {
+				criteria.add(Restrictions.eq("IsArbitrage", param.getIsArbitrage()));
+			} else {
+				criteria.add(Restrictions.or(Restrictions.eq("IsArbitrage", param.getIsArbitrage()), Restrictions.isNull("IsArbitrage")));
+			}
 		}
 
+		// 是否已经保值
+		if(param.getHadHedged() != null) {
+			if(param.getHadHedged()) {
+				criteria.add(Restrictions.or(Restrictions.gt("QuantityHedged", BigDecimal.ZERO), Restrictions.lt("QuantityHedged", BigDecimal.ZERO)));
+			} else {
+				criteria.add(Restrictions.or(Restrictions.eq("QuantityHedged", BigDecimal.ZERO), Restrictions.isNull("QuantityHedged")));
+			}
+		}
 		// 创建者
 		if (StringUtils.isNotBlank(param.getCreatedBy())) {
 			criteria.add(Restrictions.like("CreatedBy", "%" + param.getCreatedBy() + "%"));

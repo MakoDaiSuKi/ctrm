@@ -183,11 +183,8 @@ public class SpotReportApiController {
 					param.getLegalId(), param.getCommodityId(), param.getProductName()));
 			return tempVar;
 		} catch (Exception ex) {
-			ActionResult<TradeReport> tempVar = new ActionResult<TradeReport>();
-			tempVar.setSuccess(Boolean.FALSE);
-			tempVar.setMessage(ex.getMessage());
-			ex.printStackTrace();
-			return tempVar;
+			logger.error(ex.getMessage(), ex);
+			return new ActionResult<>(false, ex.getMessage());
 		}
 	}
 

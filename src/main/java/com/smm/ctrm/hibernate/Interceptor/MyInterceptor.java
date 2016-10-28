@@ -55,13 +55,11 @@ public class MyInterceptor extends EmptyInterceptor {
 
 		if (entity != null && entity instanceof Lot) {
 			Lot lot = (Lot) entity;
-			LotSign lotSign = getLotSignByLot(lot); // 获取lot的打标记时间信息
-			LotTag lotTag = getDatabaseLotTagInfo(lot.getId()); // 获取数据库中存储的lot标记信息
+			LotSign lotSign = getLotSignByLot(lot); // 从LotSign表中获取lot的打标记时间信息
+			LotTag lotTag = getDatabaseLotTagInfo(lot.getId()); // 从lot表中获取lot标记信息
 			if (lot.getUpdatedAt() != null) { // lot 更新
 				updateLotSignForUpdate(lotTag, lot, lotSign); // 更新标记时间
-			} else { // lot新增
-				updateLotSignForSave(lot, lotSign); // 更新标记时间
-			}
+			} 
 		}
 		return super.onFlushDirty(entity, id, currentState, previousState, propertyNames, types);
 	}
@@ -100,6 +98,9 @@ public class MyInterceptor extends EmptyInterceptor {
 						LotTag.class)
 				.setParameter("id", lotId).getResultList().get(0);
 		lotRepo.setFlushMode(flushMode);
+		if(lotTag == null) {
+			lotTag = new LotTag(false, false, false, false, false);
+		}
 		return lotTag;
 	}
 
@@ -109,22 +110,22 @@ public class MyInterceptor extends EmptyInterceptor {
 	 */
 	private void updateLotSignForSave(Lot lot, LotSign lotSign) {
 		Date now = new Date();
-		if (lot.getIsPriced()) {
+		if (lot.getIsPriced() != null && lot.getIsPriced()) {
 			lotSign.setIsPricedDate(now);
 		}
-		if (lot.getIsDelivered()) {
+		if (lot.getIsDelivered() != null && lot.getIsDelivered()) {
 			lotSign.setIsDeliveredDate(now);
 		}
 
-		if (lot.getIsHedged()) {
+		if (lot.getIsHedged() != null && lot.getIsHedged()) {
 			lotSign.setIsHedgedDate(now);
 		}
 
-		if (lot.getIsFunded()) {
+		if (lot.getIsFunded() != null && lot.getIsFunded()) {
 			lotSign.setIsFundedDate(now);
 		}
 
-		if (lot.getIsInvoiced()) {
+		if (lot.getIsInvoiced()!=null && lot.getIsInvoiced()) {
 			lotSign.setIsInvoicedDate(now);
 		}
 		lotSignRepo.SaveOrUpdate(lotSign);
@@ -176,7 +177,6 @@ public class MyInterceptor extends EmptyInterceptor {
 			}
 		}
 		lotSignRepo.getCurrentSession().merge(lotSign);
-//		lotSignRepo.Flush();
 	}
 
 }

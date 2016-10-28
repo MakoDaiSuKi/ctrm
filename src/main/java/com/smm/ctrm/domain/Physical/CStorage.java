@@ -48,6 +48,18 @@ public class CStorage extends HibernateEntity {
 	@JsonProperty(value = "QuantityInvoiced")
 	private BigDecimal QuantityInvoiced;
 	/**
+	 * 点价
+	 */
+	@Transient
+	@JsonProperty(value = "IsPriced")
+	private Boolean IsPriced;
+	/**
+	 * 市场价格
+	 */
+	@Transient
+	@JsonProperty(value = "Price4Market")
+	private BigDecimal Price4Market;
+	/**
 	 *
 	 */
 	@Column(name = "Premium")
@@ -2403,6 +2415,22 @@ public class CStorage extends HibernateEntity {
 
 	public void setWarehouseReceiptTime(Date warehouseReceiptTime) {
 		WarehouseReceiptTime = warehouseReceiptTime;
+	}
+
+	public Boolean getIsPriced() {
+		return IsPriced;
+	}
+
+	public void setIsPriced(Boolean isPriced) {
+		IsPriced = isPriced;
+	}
+
+	public BigDecimal getPrice4Market() {
+		return Price4Market;
+	}
+
+	public void setPrice4Market(BigDecimal price4Market) {
+		Price4Market = price4Market;
 	}
 
 }

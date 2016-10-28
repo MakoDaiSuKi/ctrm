@@ -25,6 +25,7 @@ import org.hibernate.FetchMode;
 import org.hibernate.Hibernate;
 import org.hibernate.criterion.Criterion;
 import org.hibernate.criterion.DetachedCriteria;
+import org.hibernate.criterion.Order;
 import org.hibernate.criterion.Projections;
 import org.hibernate.criterion.Restrictions;
 import org.hibernate.sql.JoinType;
@@ -50,8 +51,10 @@ import com.smm.ctrm.domain.Basis.Commodity;
 import com.smm.ctrm.domain.Basis.Customer;
 import com.smm.ctrm.domain.Basis.CustomerTitle;
 import com.smm.ctrm.domain.Basis.Legal;
+import com.smm.ctrm.domain.Basis.Market;
 import com.smm.ctrm.domain.Basis.User;
 import com.smm.ctrm.domain.Basis.Warehouse;
+import com.smm.ctrm.domain.Maintain.DSME;
 import com.smm.ctrm.domain.Physical.C2Storage;
 import com.smm.ctrm.domain.Physical.CLot;
 import com.smm.ctrm.domain.Physical.Contract;
@@ -63,6 +66,7 @@ import com.smm.ctrm.domain.Physical.Lot;
 import com.smm.ctrm.domain.Physical.MoveOrder;
 import com.smm.ctrm.domain.Physical.MoveOrderParam;
 import com.smm.ctrm.domain.Physical.ReceiptShip;
+import com.smm.ctrm.domain.Physical.SpotPriceEstimate;
 import com.smm.ctrm.domain.Physical.Storage;
 import com.smm.ctrm.domain.Physical.StorageFee;
 import com.smm.ctrm.domain.Physical.StorageFeeDetail;
@@ -97,15 +101,18 @@ public class StorageServiceImpl implements StorageService {
 
 	@Autowired
 	private HibernateRepository<C2Storage> c2repository;
+	
+	@Autowired
+	private HibernateRepository<Market> marketRepository;
 
 	@Autowired
 	private HibernateRepository<Lot> lotRepository;
 
 	@Autowired
-	private HibernateRepository<Customer> customerRepo;
-
-	@Autowired
 	private HibernateRepository<Contract> contractRepository;
+	
+	@Autowired
+	private HibernateRepository<SpotPriceEstimate> spotPriceEstimateRepo;
 
 	@Autowired
 	private HibernateRepository<ReceiptShip> receiptShipRepo;
@@ -157,6 +164,9 @@ public class StorageServiceImpl implements StorageService {
 
 	@Autowired
 	private LotService lotService;
+	
+	@Autowired
+	private HibernateRepository<DSME> dsmeRepo;
 
 	@Autowired
 	private StorageCommonService storageCommonService;
@@ -236,7 +246,7 @@ public class StorageServiceImpl implements StorageService {
 		}
 		if (param.getLotId() != null) {
 			criteria.add(Restrictions.eq("LotId", param.getLotId()));
-		}		
+		}
 
 		if (StringUtils.isNotBlank(param.getLegalIds())) {
 			String[] split = param.getLegalIds().split(",");
@@ -571,7 +581,9 @@ public class StorageServiceImpl implements StorageService {
 
 		storage.setGross(DecimalUtil.nullToZero(storage.getGross()).subtract(cpSplitStorage.getGrossSplitted()));
 		storage.setGrossAtFactory(storage.getGrossAtFactory().subtract(cpSplitStorage.getGrossAtFactorySplitted()));
-		storage.setQuantityAtWarehouse(storage.getQuantityAtWarehouse().subtract(cpSplitStorage.getQuantityAtWarehouseSplitted()));
+		if(storage.getQuantityAtWarehouse() != null) {
+			storage.setQuantityAtWarehouse(storage.getQuantityAtWarehouse().subtract(cpSplitStorage.getQuantityAtWarehouseSplitted()));
+		}
 		// storage.SplitNo =(storage.SplitNo==null||storage.SplitNo <= 0) ? 1 :
 		// storage.SplitNo + 1;
 		storageRepo.SaveOrUpdate(storage);
@@ -3377,47 +3389,37 @@ public class StorageServiceImpl implements StorageService {
 				param.getPageIndex(), param.getSortBy(), param.getOrderBy(), total).getData();
 		List<C2Storage> objs = new ArrayList<C2Storage>();
 		if (storages != null && storages.size() > 0) {
-			storages = commonService.SimplifyDataStorageHolding(storages, false);
+			List<DSME> dsmeList = getSMMDsmeList();
+			List<SpotPriceEstimate> spotPriceEstimateList = getSpotPriceEstimateList();
+			storages = commonService.SimplifyDataStorageHolding(storages, false, spotPriceEstimateList, dsmeList);
 			objs.addAll(storages);
 		}
-		/**
-		 * 通知货量
-		 */
-		Criteria criteria1 = GetCriteria2();
-		final BigDecimal dcZero = new BigDecimal(0);
-		criteria1.add(Restrictions.eq("IsNoticed", true));
-		criteria1.add(Restrictions.eq("IsHidden", false));
-		criteria1.add(Restrictions.gt("UnCxQuantity", dcZero));
-		if (param.getLegalId() != null) {
-			criteria1.add(Restrictions.eq("LegalId", param.getLegalId()));
+		return new ActionResult<>(true, "", objs, total);
+	}
+	
+	private List<SpotPriceEstimate> getSpotPriceEstimateList(){
+		Criteria criteria = spotPriceEstimateRepo.CreateCriteria(SpotPriceEstimate.class)
+				.addOrder(Order.asc("CommodityId"))
+				.addOrder(Order.desc("EstimateDate"));
+		return spotPriceEstimateRepo.GetList(criteria);
+	}
+	
+	private List<DSME> getSMMDsmeList(){
+		List<Market> marketList = marketRepository.GetList(Market.class);
+		String marketId = "";
+		for(Market market : marketList) {
+			if(market.getCode().equalsIgnoreCase("SMM")) {
+				marketId = market.getId();
+			}
 		}
-		if (param.getWarehouseId() != null) {
-			criteria1.add(Restrictions.eq("WarehouseId", param.getWarehouseId()));
+		if(StringUtils.isNotBlank(marketId)) {
+			Criteria criteria = dsmeRepo.CreateCriteria(DSME.class)
+					.add(Restrictions.eq("MarketId", marketId))
+					.addOrder(Order.asc("CommodityId"))
+					.addOrder(Order.desc("TradeDate"));
+			return dsmeRepo.GetList(criteria);
 		}
-		if (param.getBrandId() != null) {
-			criteria1.add(Restrictions.eq("BrandId", param.getBrandId()));
-		}
-		if (!StringUtils.isBlank(param.getTransitStatus())) {
-			criteria1.add(Restrictions.eq("TransitStatus", param.getTransitStatus()));
-		}
-		if (param.getCommodityIdList() != null && param.getCommodityIdList().size() > 0) {
-			criteria1.add(Restrictions.in("CommodityId", param.getCommodityIdList()));
-		}
-		if (!StringUtils.isBlank(param.getKeyword())) {
-			Criterion d = Restrictions.like("NoticeBillNo", "%" + param.getKeyword() + "%");
-			criteria1.add(d);
-		}
-		RefUtil total2 = new RefUtil();
-		List<C2Storage> storagesNoticed = this.c2repository.GetPage(criteria1, param.getPageSize(),
-				param.getPageIndex(), param.getSortBy(), param.getOrderBy(), total2).getData();
-		/**
-		 * 通知货量，显示未冲销数量
-		 */
-		if (storagesNoticed != null && storagesNoticed.size() > 0) {
-			storagesNoticed = commonService.SimplifyDataStorageHolding(storagesNoticed, true);
-			objs.addAll(storagesNoticed);
-		}
-		return new ActionResult<>(true, "", objs, new RefUtil(objs.size()));
+		return new ArrayList<>();
 	}
 
 	@Override
@@ -3478,6 +3480,12 @@ public class StorageServiceImpl implements StorageService {
 		if (param.getEndDate() != null) {
 			criteria.add(Restrictions.le("TradeDate", param.getEndDate()));
 		}
+		if (param.getLoadDateEnd() != null) {
+			criteria.add(Restrictions.le("LoadDate", param.getLoadDateEnd()));
+		}
+		if (param.getLoadDateStart() != null) {
+			criteria.add(Restrictions.ge("LoadDate", param.getLoadDateStart()));
+		}
 		criteria.add(Restrictions.eq("IsHidden", false));
 
 		param.setSortBy(commonService.FormatSortBy(param.getSortBy()));
@@ -3535,7 +3543,7 @@ public class StorageServiceImpl implements StorageService {
 
 		List<C2Storage> objs = new ArrayList<C2Storage>();
 		if (storages != null) {
-			storages = commonService.SimplifyDataStorageHolding(storages, false);
+			storages = commonService.SimplifyDataStorageHolding(storages, false, new ArrayList<>(), new ArrayList<>());
 			objs.addAll(storages);
 		}
 

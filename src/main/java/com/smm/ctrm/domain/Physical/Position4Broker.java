@@ -27,6 +27,7 @@ import com.smm.ctrm.domain.Basis.Customer;
 import com.smm.ctrm.domain.Basis.Legal;
 import com.smm.ctrm.domain.Basis.Market;
 import com.smm.ctrm.domain.Basis.User;
+import com.smm.ctrm.domain.Basis.Instrument;
 
 @Entity
 @Table(name = "Position4Broker", schema = "Physical")
@@ -622,6 +623,14 @@ public class Position4Broker extends HibernateEntity {
 	@Column(name = "InstrumentId")
 	@JsonProperty(value = "InstrumentId")
 	private String InstrumentId;
+	
+	@ManyToOne(fetch = FetchType.EAGER, targetEntity = Instrument.class)
+	@JoinColumn(name = "InstrumentId", insertable = false, updatable = false, foreignKey = @ForeignKey(name = "none"))
+	@Fetch(FetchMode.SELECT)
+	@NotFound(action = NotFoundAction.IGNORE)
+	@JsonProperty(value = "Instrument")
+	private Instrument Instrument;
+	
 	/**
 	 * 创建者Id
 	 */
@@ -661,11 +670,18 @@ public class Position4Broker extends HibernateEntity {
 	
 	//十二期增加字段
     /**
-	 * 交割数量
+	 * 已交割数量
 	 */
 	@Column(name = "DeliveryQuantity")
 	@JsonProperty(value = "DeliveryQuantity")
 	private BigDecimal DeliveryQuantity;
+	
+	/**
+	 * 交割数量
+	 */
+	@Transient
+	@JsonProperty(value = "DeliveryQuantitying")
+	private BigDecimal DeliveryQuantitying;
 	
 	/**
 	 * 交割价格(加权平均价)
@@ -682,12 +698,18 @@ public class Position4Broker extends HibernateEntity {
 	private Date LastDeliveryDate;
 	
 	/**
-	 * 平仓数量(已平仓数量汇总)
+	 * 已平仓数量(已平仓数量汇总)
 	 */
 	@Column(name = "UnravelQuantity")
 	@JsonProperty(value = "UnravelQuantity")
 	private BigDecimal UnravelQuantity;
 	
+	/**
+	 * 平仓数量
+	 */
+	@Transient
+	@JsonProperty(value = "UnravelQuantitying")
+	private BigDecimal UnravelQuantitying;
 	
 	/**
 	 * 平仓价格(加权平均)
@@ -702,6 +724,34 @@ public class Position4Broker extends HibernateEntity {
 	@Column(name = "LastUnravelDate")
 	@JsonProperty(value = "LastUnravelDate")
 	private Date LastUnravelDate;
+	
+	/**
+	 * 已换月数量(已换月数量汇总)
+	 */
+	@Column(name = "ChangeMonthQuantity")
+	@JsonProperty(value = "ChangeMonthQuantity")
+	private BigDecimal ChangeMonthQuantity;
+	
+	/**
+	 * 换月数量
+	 */
+	@Transient
+	@JsonProperty(value = "ChangeMonthQuantitying")
+	private BigDecimal ChangeMonthQuantitying;
+	
+	/**
+	 * 换月价格(加权平均)
+	 */
+	@Column(name = "ChangeMonthPrice")
+	@JsonProperty(value = "ChangeMonthPrice")
+	private BigDecimal ChangeMonthPrice;
+	
+	/**
+	 * 最后换月时间
+	 */
+	@Column(name = "LastChangeMonthDate")
+	@JsonProperty(value = "LastChangeMonthDate")
+	private Date LastChangeMonthDate;
 	
 	
 	public BigDecimal getM2MPrice() {
@@ -1574,6 +1624,62 @@ public class Position4Broker extends HibernateEntity {
 
 	public void setLastUnravelDate(Date lastUnravelDate) {
 		LastUnravelDate = lastUnravelDate;
+	}
+
+	public BigDecimal getAmount() {
+		return Amount;
+	}
+
+	public void setAmount(BigDecimal amount) {
+		Amount = amount;
+	}
+
+	public BigDecimal getDeliveryQuantitying() {
+		return DeliveryQuantitying;
+	}
+
+	public void setDeliveryQuantitying(BigDecimal deliveryQuantitying) {
+		DeliveryQuantitying = deliveryQuantitying;
+	}
+
+	public BigDecimal getUnravelQuantitying() {
+		return UnravelQuantitying;
+	}
+
+	public void setUnravelQuantitying(BigDecimal unravelQuantitying) {
+		UnravelQuantitying = unravelQuantitying;
+	}
+
+	public BigDecimal getChangeMonthQuantity() {
+		return ChangeMonthQuantity;
+	}
+
+	public void setChangeMonthQuantity(BigDecimal changeMonthQuantity) {
+		ChangeMonthQuantity = changeMonthQuantity;
+	}
+
+	public BigDecimal getChangeMonthQuantitying() {
+		return ChangeMonthQuantitying;
+	}
+
+	public void setChangeMonthQuantitying(BigDecimal changeMonthQuantitying) {
+		ChangeMonthQuantitying = changeMonthQuantitying;
+	}
+
+	public BigDecimal getChangeMonthPrice() {
+		return ChangeMonthPrice;
+	}
+
+	public void setChangeMonthPrice(BigDecimal changeMonthPrice) {
+		ChangeMonthPrice = changeMonthPrice;
+	}
+
+	public Date getLastChangeMonthDate() {
+		return LastChangeMonthDate;
+	}
+
+	public void setLastChangeMonthDate(Date lastChangeMonthDate) {
+		LastChangeMonthDate = lastChangeMonthDate;
 	}
 
 }

@@ -10,6 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.smm.ctrm.bo.Physical.StorageService;
 import com.smm.ctrm.bo.Report.DailyReportService;
+import com.smm.ctrm.bo.Report.PositionDailyReportService;
 import com.smm.ctrm.dto.res.ReceiptShipDailyReport.DailyReport;
 import com.smm.ctrm.hibernate.DataSource.DataSourceConfig;
 import com.smm.ctrm.hibernate.DataSource.DataSourceContextHolder;
@@ -24,6 +25,10 @@ public class DailyJob {
 	
 	@Resource
 	StorageService storageService;
+	
+	@Resource
+	PositionDailyReportService positionDailyReportService;
+	
 	
 	public synchronized void execute() {
 		logger.info("【"+DateUtil.doFormatDate(new Date(), "yyyy-MM-dd HH:mm:ss")+"】开始生成采购和销售日报");
@@ -75,5 +80,31 @@ public class DailyJob {
 			logger.error(e.getMessage(), e);
 			e.printStackTrace();
 		}
+	}
+	
+	@Transactional
+	public synchronized void PositionDailyReport() {
+		logger.info("【"+DateUtil.doFormatDate(new Date(), "yyyy-MM-dd HH:mm:ss")+"】开始生成头寸日报");
+		try {
+			List<String> dataSourceKey=DataSourceConfig.getDatasourcenamelist();
+			
+			if(dataSourceKey.size()>0){
+				dataSourceKey.forEach(p->{
+					try {
+						//设置数据源
+						logger.info("设置数据源:"+p);
+						DataSourceContextHolder.setDataSourceType(p);
+						positionDailyReportService.DailyToJson(new Date());
+						positionDailyReportService.clearSession(); // session级别缓存未区分多数据源，因此要清空
+					} catch (Exception e) {
+						logger.error(e.getMessage(), e);
+					}
+					
+				});
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		logger.info("【"+DateUtil.doFormatDate(new Date(), "yyyy-MM-dd HH:mm:ss")+"】结束生成头寸日报");
 	}
 }

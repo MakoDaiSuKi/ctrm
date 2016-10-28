@@ -1,8 +1,6 @@
 package com.smm.ctrm.bo.impl.Common;
 
 import java.awt.image.BufferedImage;
-import java.awt.image.RasterFormatException;
-import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
@@ -14,7 +12,6 @@ import java.util.Comparator;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -43,12 +40,10 @@ import org.hibernate.type.StandardBasicTypes;
 import org.hibernate.type.Type;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import com.alibaba.fastjson.JSON;
 import com.google.zxing.BarcodeFormat;
 import com.smm.ctrm.bo.Common.CommonService;
-import com.smm.ctrm.bo.Physical.ReceiptService;
 import com.smm.ctrm.dao.HibernateRepository;
 import com.smm.ctrm.domain.LoginInfo;
 import com.smm.ctrm.domain.Mainmeta;
@@ -69,7 +64,6 @@ import com.smm.ctrm.domain.Basis.Market;
 import com.smm.ctrm.domain.Basis.Menu;
 import com.smm.ctrm.domain.Basis.RolePermission;
 import com.smm.ctrm.domain.Basis.SysSequence;
-import com.smm.ctrm.domain.Basis.SysSequenceResult;
 import com.smm.ctrm.domain.Basis.User;
 import com.smm.ctrm.domain.Basis.UserRole;
 import com.smm.ctrm.domain.Maintain.DSME;
@@ -98,6 +92,7 @@ import com.smm.ctrm.domain.Physical.Pricing;
 import com.smm.ctrm.domain.Physical.PricingRecord;
 import com.smm.ctrm.domain.Physical.QPRecord;
 import com.smm.ctrm.domain.Physical.ReceiptShip;
+import com.smm.ctrm.domain.Physical.SpotPriceEstimate;
 import com.smm.ctrm.domain.Physical.Square;
 import com.smm.ctrm.domain.Physical.Square4Broker;
 import com.smm.ctrm.domain.Physical.Storage;
@@ -114,7 +109,6 @@ import com.smm.ctrm.util.DecimalUtil;
 import com.smm.ctrm.util.HttpClientUtil;
 import com.smm.ctrm.util.JSONUtil;
 import com.smm.ctrm.util.MessageCtrm;
-import com.smm.ctrm.util.ParameterType;
 import com.smm.ctrm.util.PropertiesUtil;
 import com.smm.ctrm.util.QrCodePrintUtil;
 import com.smm.ctrm.util.RefUtil;
@@ -154,7 +148,7 @@ public class CommonServiceImpl implements CommonService {
 
 	@Autowired
 	private HibernateRepository<Pending> pendingRepo;
-	
+
 	@Resource
 	private HibernateRepository<ReceiptShip> receiptShipRepo;
 
@@ -230,9 +224,7 @@ public class CommonServiceImpl implements CommonService {
 	@Autowired
 	private HibernateRepository<Reuter> reuterRepo;
 
-	@Autowired
-	private HibernateRepository<User> userRepo;
-
+	
 	@Autowired
 	private HibernateRepository<UserRole> userRoleRepo;
 
@@ -253,7 +245,7 @@ public class CommonServiceImpl implements CommonService {
 
 	@Autowired
 	private HibernateRepository<Fund> funRepo;
-	
+
 	@Autowired
 	private HibernateRepository<Instrument> instrumentRepo;
 
@@ -349,9 +341,9 @@ public class CommonServiceImpl implements CommonService {
 	@Override
 	public ActionResult<List<Attachment>> GetAttachments(String attachType, Boolean isOutDoc, String id) {
 		DetachedCriteria where = DetachedCriteria.forClass(Attachment.class)
-				.add(Restrictions.eq("IsOutDocument", isOutDoc))
-			.add(Restrictions.eqOrIsNull(attachType + "Id", id));
-		List<Attachment> attachments = this.attachmentRepo.GetQueryable(Attachment.class).where(where).OrderBy(Order.desc("TradeDate")).toList();
+				.add(Restrictions.eq("IsOutDocument", isOutDoc)).add(Restrictions.eqOrIsNull(attachType + "Id", id));
+		List<Attachment> attachments = this.attachmentRepo.GetQueryable(Attachment.class).where(where)
+				.OrderBy(Order.desc("TradeDate")).toList();
 		return new ActionResult<>(true, "", attachments);
 	}
 
@@ -979,7 +971,7 @@ public class CommonServiceImpl implements CommonService {
 
 			} catch (Exception e) {
 				logger.error(e.getMessage(), e);
-				return new ActionResult<>(false,e.getMessage());
+				return new ActionResult<>(false, e.getMessage());
 			}
 
 		}
@@ -1072,12 +1064,11 @@ public class CommonServiceImpl implements CommonService {
 	@Override
 	public CustomerTitle SimplifyData(CustomerTitle customerTitle) {
 
-		
 		if (customerTitle == null)
 			return null;
-		
+
 		CustomerTitle obj = com.smm.ctrm.util.BeanUtils.copy(customerTitle);
-		if (customerTitle.getCustomer() != null){
+		if (customerTitle.getCustomer() != null) {
 			obj.setCustomerName(customerTitle.getCustomer().getName());
 			obj.setCustomer(null);
 		}
@@ -1131,7 +1122,7 @@ public class CommonServiceImpl implements CommonService {
 			return null;
 
 		Contract obj = com.smm.ctrm.util.BeanUtils.copy(contract);
-		
+
 		if (contract.getCustomer() != null) {
 			obj.setCustomer(contract.getCustomer());
 			obj.setCustomerName(contract.getCustomer().getName());
@@ -1154,10 +1145,11 @@ public class CommonServiceImpl implements CommonService {
 			obj.setCommodityName(contract.getCommodity().getName());
 
 			/*
-			obj.setQuantity(FormatQuantity(obj.getQuantity(), contract.getCommodity(), contract.getCommodityId()));
-			obj.setQuantityOfLots(
-					FormatQuantity(obj.getQuantityOfLots(), contract.getCommodity(), contract.getCommodityId()));
-			*/
+			 * obj.setQuantity(FormatQuantity(obj.getQuantity(),
+			 * contract.getCommodity(), contract.getCommodityId()));
+			 * obj.setQuantityOfLots( FormatQuantity(obj.getQuantityOfLots(),
+			 * contract.getCommodity(), contract.getCommodityId()));
+			 */
 		}
 
 		return obj;
@@ -1169,8 +1161,8 @@ public class CommonServiceImpl implements CommonService {
 		if (lot == null)
 			return null;
 
+		this.lotRepo.getCurrentSession().evict(lot);//将实体对象清除游离状态，避免set属性后执行update操作
 		Lot obj = com.smm.ctrm.util.BeanUtils.copy(lot);
-
 		obj.setLegal(lot.getLegal());
 
 		if (lot.getCustomer() != null) {
@@ -1197,61 +1189,66 @@ public class CommonServiceImpl implements CommonService {
 		}
 
 		/*
-		// region 格式化数量,单价
-		obj.setQuantity(FormatQuantity(obj.getQuantity(), lot.getCommodity(), lot.getCommodityId()));
-
-		obj.setQuantityOriginal(FormatQuantity(obj.getQuantityOriginal(), lot.getCommodity(), lot.getCommodityId()));
-		obj.setQuantityLess(FormatQuantity(obj.getQuantityLess(), lot.getCommodity(), lot.getCommodityId()));
-		obj.setQuantityMore(FormatQuantity(obj.getQuantityMore(), lot.getCommodity(), lot.getCommodityId()));
-
-		if (obj.getQuantityDelivered() != null) {
-			obj.setQuantityDelivered(
-					FormatQuantity(obj.getQuantityDelivered(), lot.getCommodity(), lot.getCommodityId()));
-		}
-
-		if (obj.getQuantityInvoiced() != null)
-			obj.setQuantityInvoiced(
-					FormatQuantity(obj.getQuantityInvoiced(), lot.getCommodity(), lot.getCommodityId()));
-
-		if (obj.getQuantityPriced() != null)
-			obj.setQuantityPriced(FormatQuantity(obj.getQuantityPriced(), lot.getCommodity(), lot.getCommodityId()));
-
-		if (obj.getQuantityHedged() != null)
-			obj.setQuantityHedged(FormatQuantity(obj.getQuantityHedged(), lot.getCommodity(), lot.getCommodityId()));
-
-		if (obj.getQuantityUnPriced() != null)
-			obj.setQuantityUnPriced(
-					FormatQuantity(obj.getQuantityUnPriced(), lot.getCommodity(), lot.getCommodityId()));
-
-		if (obj.getQuantityUnInvoiced() != null)
-			obj.setQuantityUnInvoiced(
-					FormatQuantity(obj.getQuantityUnInvoiced(), lot.getCommodity(), lot.getCommodityId()));
-
-		if (obj.getQtyPerPremiumDay() != null)
-			obj.setQtyPerPremiumDay(
-					FormatQuantity(obj.getQtyPerPremiumDay(), lot.getCommodity(), lot.getCommodityId()));
-
-		if (obj.getQtyPerMainDay() != null)
-			obj.setQtyPerMainDay(FormatQuantity(obj.getQtyPerMainDay(), lot.getCommodity(), lot.getCommodityId()));
-
-		if (obj.getPremium() != null)
-			obj.setPremium(FormatPrice(obj.getPremium(), lot.getCommodity(), lot.getCommodityId()));
-
-		if (obj.getMajor() != null)
-			obj.setMajor(FormatPrice(obj.getMajor(), lot.getCommodity(), lot.getCommodityId()));
-
-		if (obj.getPrice() != null)
-			obj.setPrice(FormatPrice(obj.getPrice(), lot.getCommodity(), lot.getCommodityId()));
-		if (obj.getFinal() != null)
-			obj.setFinal(FormatPrice(obj.getFinal(), lot.getCommodity(), lot.getCommodityId()));
-		if (obj.getFee() != null)
-			obj.setFee(FormatPrice(obj.getFee(), lot.getCommodity(), lot.getCommodityId()));
-		if (obj.getRealFee() != null)
-			obj.setRealFee(FormatPrice(obj.getRealFee(), lot.getCommodity(), lot.getCommodityId()));
-		if (obj.getEstimateFee() != null)
-			obj.setEstimateFee(FormatPrice(obj.getEstimateFee(), lot.getCommodity(), lot.getCommodityId()));
-		// endregion
-		*/
+		 * // region 格式化数量,单价 obj.setQuantity(FormatQuantity(obj.getQuantity(),
+		 * lot.getCommodity(), lot.getCommodityId()));
+		 * 
+		 * obj.setQuantityOriginal(FormatQuantity(obj.getQuantityOriginal(),
+		 * lot.getCommodity(), lot.getCommodityId()));
+		 * obj.setQuantityLess(FormatQuantity(obj.getQuantityLess(),
+		 * lot.getCommodity(), lot.getCommodityId()));
+		 * obj.setQuantityMore(FormatQuantity(obj.getQuantityMore(),
+		 * lot.getCommodity(), lot.getCommodityId()));
+		 * 
+		 * if (obj.getQuantityDelivered() != null) { obj.setQuantityDelivered(
+		 * FormatQuantity(obj.getQuantityDelivered(), lot.getCommodity(),
+		 * lot.getCommodityId())); }
+		 * 
+		 * if (obj.getQuantityInvoiced() != null) obj.setQuantityInvoiced(
+		 * FormatQuantity(obj.getQuantityInvoiced(), lot.getCommodity(),
+		 * lot.getCommodityId()));
+		 * 
+		 * if (obj.getQuantityPriced() != null)
+		 * obj.setQuantityPriced(FormatQuantity(obj.getQuantityPriced(),
+		 * lot.getCommodity(), lot.getCommodityId()));
+		 * 
+		 * if (obj.getQuantityHedged() != null)
+		 * obj.setQuantityHedged(FormatQuantity(obj.getQuantityHedged(),
+		 * lot.getCommodity(), lot.getCommodityId()));
+		 * 
+		 * if (obj.getQuantityUnPriced() != null) obj.setQuantityUnPriced(
+		 * FormatQuantity(obj.getQuantityUnPriced(), lot.getCommodity(),
+		 * lot.getCommodityId()));
+		 * 
+		 * if (obj.getQuantityUnInvoiced() != null) obj.setQuantityUnInvoiced(
+		 * FormatQuantity(obj.getQuantityUnInvoiced(), lot.getCommodity(),
+		 * lot.getCommodityId()));
+		 * 
+		 * if (obj.getQtyPerPremiumDay() != null) obj.setQtyPerPremiumDay(
+		 * FormatQuantity(obj.getQtyPerPremiumDay(), lot.getCommodity(),
+		 * lot.getCommodityId()));
+		 * 
+		 * if (obj.getQtyPerMainDay() != null)
+		 * obj.setQtyPerMainDay(FormatQuantity(obj.getQtyPerMainDay(),
+		 * lot.getCommodity(), lot.getCommodityId()));
+		 * 
+		 * if (obj.getPremium() != null)
+		 * obj.setPremium(FormatPrice(obj.getPremium(), lot.getCommodity(),
+		 * lot.getCommodityId()));
+		 * 
+		 * if (obj.getMajor() != null) obj.setMajor(FormatPrice(obj.getMajor(),
+		 * lot.getCommodity(), lot.getCommodityId()));
+		 * 
+		 * if (obj.getPrice() != null) obj.setPrice(FormatPrice(obj.getPrice(),
+		 * lot.getCommodity(), lot.getCommodityId())); if (obj.getFinal() !=
+		 * null) obj.setFinal(FormatPrice(obj.getFinal(), lot.getCommodity(),
+		 * lot.getCommodityId())); if (obj.getFee() != null)
+		 * obj.setFee(FormatPrice(obj.getFee(), lot.getCommodity(),
+		 * lot.getCommodityId())); if (obj.getRealFee() != null)
+		 * obj.setRealFee(FormatPrice(obj.getRealFee(), lot.getCommodity(),
+		 * lot.getCommodityId())); if (obj.getEstimateFee() != null)
+		 * obj.setEstimateFee(FormatPrice(obj.getEstimateFee(),
+		 * lot.getCommodity(), lot.getCommodityId())); // endregion
+		 */
 		obj.setBrands(lot.getBrands());
 		obj.setContract(lot.getContract());
 		// obj.setContract(SimplifyData(lot.getContract()));
@@ -1286,9 +1283,11 @@ public class CommonServiceImpl implements CommonService {
 			fund.setUnit(fund.getCommodity().getUnit());
 		}
 		/*
-		fund.setQuantity(FormatQuantity(fund.getQuantity(), fund.getCommodity(), fund.getCommodityId()));
-		fund.setInvoiceQuantity(FormatQuantity(fund.getInvoiceQuantity(), fund.getCommodity(), fund.getCommodityId()));
-	 	*/
+		 * fund.setQuantity(FormatQuantity(fund.getQuantity(),
+		 * fund.getCommodity(), fund.getCommodityId()));
+		 * fund.setInvoiceQuantity(FormatQuantity(fund.getInvoiceQuantity(),
+		 * fund.getCommodity(), fund.getCommodityId()));
+		 */
 		fund.setInvoice(SimplifyData(fund.getInvoice()));
 
 		return fund;
@@ -1374,9 +1373,9 @@ public class CommonServiceImpl implements CommonService {
 		invoice.setQuantity(FormatQuantity(invoice.getQuantity(), invoice.getCommodity(), invoice.getCommodityId()));
 		invoice.setQuantityDrafted(
 				FormatQuantity(invoice.getQuantityDrafted(), invoice.getCommodity(), invoice.getCommodityId()));
-		
+
 		Invoice obj = com.smm.ctrm.util.BeanUtils.copy(invoice);
-		
+
 		if (invoice.getInvoiceGrades() != null)
 			obj.setInvoiceGrades(SimplifyDataInvoiceGradeList(invoice.getInvoiceGrades()));
 
@@ -1385,7 +1384,7 @@ public class CommonServiceImpl implements CommonService {
 
 		if (invoice.getNotices() != null)
 			obj.setNotices(SimplifyDataStorageList(invoice.getNotices()));
-		
+
 		return obj;
 	}
 
@@ -1399,8 +1398,8 @@ public class CommonServiceImpl implements CommonService {
 		if (obj.getPrice() != null && BigDecimal.ZERO.compareTo(obj.getPrice()) != 0) {
 			storage.setAmount(storage.getQuantityInvoiced().multiply(obj.getPrice()));
 		} else {
-			storage.setAmount(storage.getQuantityInvoiced()
-					.multiply(obj.getPriceProvisional() != null ? obj.getPriceProvisional() : BigDecimal.ZERO));
+			storage.setAmount(DecimalUtil.nullToZero(storage.getQuantityInvoiced())
+					.multiply(DecimalUtil.nullToZero(obj.getPriceProvisional())));
 		}
 		storage.setAmount2((obj.getStorageQuantity() != null ? obj.getStorageQuantity() : BigDecimal.ZERO)
 				.multiply(obj.getPrice() != null ? obj.getPrice() : BigDecimal.ZERO));
@@ -1440,37 +1439,43 @@ public class CommonServiceImpl implements CommonService {
 			storage.setCommodityName(obj.getCommodity().getName());
 			storage.setUnit(obj.getCommodity().getUnit());
 		}
-		
-		/*
-		// 格式化数量
-		storage.setQuantity(FormatQuantity(obj.getQuantity(), obj.getCommodity(), obj.getCommodityId()));
-		storage.setGross(FormatQuantity(obj.getGross(), obj.getCommodity(), obj.getCommodityId()));
-		storage.setUnCxQuantity(FormatQuantity(obj.getUnCxQuantity(), obj.getCommodity(), obj.getCommodityId()));
-		storage.setGrossAtFactory(FormatQuantity(obj.getGrossAtFactory(), obj.getCommodity(), obj.getCommodityId()));
-		storage.setDiff(FormatQuantity(obj.getDiff(), obj.getCommodity(), obj.getCommodityId()));
-		storage.setStorageQuantity(
-				FormatQuantity(storage.getGross().subtract(new BigDecimal(obj.getBundles() * 0.003f)),
-						obj.getCommodity(), obj.getCommodityId()));
-						
-		if (obj.getCounterparty() != null) {
-			if (obj.getCounterparty().getLot() != null)
-				storage.setFullNoOfCounterparty(obj.getCounterparty().getLot().getFullNo());
 
-			if (obj.getCounterparty().getCustomer() != null)
-				storage.setCustomerNameOfCounterparty(obj.getCounterparty().getCustomer().getName());
-		}*/
+		/*
+		 * // 格式化数量 storage.setQuantity(FormatQuantity(obj.getQuantity(),
+		 * obj.getCommodity(), obj.getCommodityId()));
+		 * storage.setGross(FormatQuantity(obj.getGross(), obj.getCommodity(),
+		 * obj.getCommodityId()));
+		 * storage.setUnCxQuantity(FormatQuantity(obj.getUnCxQuantity(),
+		 * obj.getCommodity(), obj.getCommodityId()));
+		 * storage.setGrossAtFactory(FormatQuantity(obj.getGrossAtFactory(),
+		 * obj.getCommodity(), obj.getCommodityId()));
+		 * storage.setDiff(FormatQuantity(obj.getDiff(), obj.getCommodity(),
+		 * obj.getCommodityId())); storage.setStorageQuantity(
+		 * FormatQuantity(storage.getGross().subtract(new
+		 * BigDecimal(obj.getBundles() * 0.003f)), obj.getCommodity(),
+		 * obj.getCommodityId()));
+		 * 
+		 * if (obj.getCounterparty() != null) { if
+		 * (obj.getCounterparty().getLot() != null)
+		 * storage.setFullNoOfCounterparty(obj.getCounterparty().getLot().
+		 * getFullNo());
+		 * 
+		 * if (obj.getCounterparty().getCustomer() != null)
+		 * storage.setCustomerNameOfCounterparty(obj.getCounterparty().
+		 * getCustomer().getName()); }
+		 */
 		if (obj.getMT().equals("M") && obj.getCounterparty3() != null) {
-			if(obj.getCounterparty3().getLot()!= null) {
+			if (obj.getCounterparty3().getLot() != null) {
 				storage.setFullNoOfCounterparty(obj.getCounterparty3().getLot().getFullNo());
 			}
-			if(obj.getCounterparty3().getCustomer() != null) {
+			if (obj.getCounterparty3().getCustomer() != null) {
 				storage.setCustomerNameOfCounterparty(obj.getCounterparty3().getCustomer().getName());
 			}
 		} else if (obj.getMT().equals("T") && obj.getCounterparty2() != null) {
-			if(obj.getCounterparty2().getLot()!= null) {
+			if (obj.getCounterparty2().getLot() != null) {
 				storage.setFullNoOfCounterparty(obj.getCounterparty2().getLot().getFullNo());
 			}
-			if(obj.getCounterparty2().getCustomer() != null) {
+			if (obj.getCounterparty2().getCustomer() != null) {
 				storage.setCustomerNameOfCounterparty(obj.getCounterparty2().getCustomer().getName());
 			}
 		}
@@ -1485,7 +1490,7 @@ public class CommonServiceImpl implements CommonService {
 			storage.setLot(com.smm.ctrm.util.BeanUtils.copy(obj.getLot()));
 		if (obj.getSource() != null)
 			storage.setSource(com.smm.ctrm.util.BeanUtils.copy(obj.getSource()));
-		
+
 		return storage;
 	}
 
@@ -1521,20 +1526,20 @@ public class CommonServiceImpl implements CommonService {
 			position.setBrokerName(position.getBroker().getName());
 			position.setBroker(null);
 		}
-		if(StringUtils.isNotBlank(position.getInstrumentId())) {
-			Instrument instrument = instrumentRepo.getOneById(position.getInstrumentId(), Instrument.class);
-			if(instrument != null){
-				position.setInstrumentName(instrument.getName());
-			}
+		if (position.getInstrument() != null) {
+			position.setInstrumentName(position.getInstrument().getName());
+			position.setInstrument(null);
 		}
 		/*
-		position.setQuantity(
-				FormatQuantity(position.getQuantity(), position.getCommodity(), position.getCommodityId()));
-		position.setQuantityOriginal(
-				FormatQuantity(position.getQuantityOriginal(), position.getCommodity(), position.getCommodityId()));
-		position.setQuantityUnSquared(
-				FormatQuantity(position.getQuantityUnSquared(), position.getCommodity(), position.getCommodityId()));
-		*/
+		 * position.setQuantity( FormatQuantity(position.getQuantity(),
+		 * position.getCommodity(), position.getCommodityId()));
+		 * position.setQuantityOriginal(
+		 * FormatQuantity(position.getQuantityOriginal(),
+		 * position.getCommodity(), position.getCommodityId()));
+		 * position.setQuantityUnSquared(
+		 * FormatQuantity(position.getQuantityUnSquared(),
+		 * position.getCommodity(), position.getCommodityId()));
+		 */
 
 		position.setQuantityBeforeChanged(position.getQuantity());
 
@@ -1581,12 +1586,13 @@ public class CommonServiceImpl implements CommonService {
 		square.setRefShort(square.getShort().getOurRef());
 
 		/*
-		square.setQuantity(FormatQuantity(square.getQuantity(), square.getCommodity(), square.getCommodityId()));
-		square.setQuantityLong(
-				FormatQuantity(square.getQuantityLong(), square.getCommodity(), square.getCommodityId()));
-		square.setQuantityLong(
-				FormatQuantity(square.getQuantityShort(), square.getCommodity(), square.getCommodityId()));
-		*/
+		 * square.setQuantity(FormatQuantity(square.getQuantity(),
+		 * square.getCommodity(), square.getCommodityId()));
+		 * square.setQuantityLong( FormatQuantity(square.getQuantityLong(),
+		 * square.getCommodity(), square.getCommodityId()));
+		 * square.setQuantityLong( FormatQuantity(square.getQuantityShort(),
+		 * square.getCommodity(), square.getCommodityId()));
+		 */
 
 		return com.smm.ctrm.util.BeanUtils.copy(square);
 	}
@@ -1632,15 +1638,17 @@ public class CommonServiceImpl implements CommonService {
 		}
 		// pricing.PriceContainFee = pricing.Major ?? 0 + pricing.Fee ?? 0;
 		/*
-		pricing.setQuantity(FormatQuantity(pricing.getQuantity(), pricing.getCommodity(), pricing.getCommodityId()));
-		pricing.setQtyPerMainDay(
-				FormatQuantity(pricing.getQtyPerMainDay(), pricing.getCommodity(), pricing.getCommodityId()));
-		pricing.setQtyPerPremiumDay(
-				FormatQuantity(pricing.getQtyPerPremiumDay(), pricing.getCommodity(), pricing.getCommodityId()));
-		pricing.setPriceContainFee(pricing.getMajor().add(pricing.getFee()));
-		pricing.setPriceContainFee(
-				FormatPrice(pricing.getPriceContainFee(), pricing.getCommodity(), pricing.getCommodityId()));
-		*/
+		 * pricing.setQuantity(FormatQuantity(pricing.getQuantity(),
+		 * pricing.getCommodity(), pricing.getCommodityId()));
+		 * pricing.setQtyPerMainDay( FormatQuantity(pricing.getQtyPerMainDay(),
+		 * pricing.getCommodity(), pricing.getCommodityId()));
+		 * pricing.setQtyPerPremiumDay(
+		 * FormatQuantity(pricing.getQtyPerPremiumDay(), pricing.getCommodity(),
+		 * pricing.getCommodityId()));
+		 * pricing.setPriceContainFee(pricing.getMajor().add(pricing.getFee()));
+		 * pricing.setPriceContainFee( FormatPrice(pricing.getPriceContainFee(),
+		 * pricing.getCommodity(), pricing.getCommodityId()));
+		 */
 		// Pricing obj = new Pricing();
 		//
 
@@ -1680,12 +1688,14 @@ public class CommonServiceImpl implements CommonService {
 
 		// record.PriceContainFee = record.Major ?? 0 + record.Fee ?? 0;
 		/*
-		record.setQuantity(FormatQuantity(record.getQuantity(), record.getCommodity(), record.getCommodityId()));
-		record.setQtyPerMainDay(
-				FormatQuantity(record.getQtyPerMainDay(), record.getCommodity(), record.getCommodityId()));
-		record.setQtyPerPremiumDay(
-				FormatQuantity(record.getQtyPerPremiumDay(), record.getCommodity(), record.getCommodityId()));
-		*/
+		 * record.setQuantity(FormatQuantity(record.getQuantity(),
+		 * record.getCommodity(), record.getCommodityId()));
+		 * record.setQtyPerMainDay( FormatQuantity(record.getQtyPerMainDay(),
+		 * record.getCommodity(), record.getCommodityId()));
+		 * record.setQtyPerPremiumDay(
+		 * FormatQuantity(record.getQtyPerPremiumDay(), record.getCommodity(),
+		 * record.getCommodityId()));
+		 */
 		PricingRecord obj = new PricingRecord();
 
 		try {
@@ -1805,12 +1815,12 @@ public class CommonServiceImpl implements CommonService {
 			if (pending.getApprove().getApprover() != null)
 				pending.setApproverName(pending.getApprove().getApprover().getName());
 		}
-		
+
 		Pending result = com.smm.ctrm.util.BeanUtils.copy(pending);
-		if(pending.getReceiptShip() != null) {
+		if (pending.getReceiptShip() != null) {
 			result.setReceiptShip(pending.getReceiptShip());
 		}
-		if(pending.getInvoice()!=null) {
+		if (pending.getInvoice() != null) {
 			pending.setInvoiceNo(pending.getInvoice().getInvoiceNo());
 			result.setInvoice(com.smm.ctrm.util.BeanUtils.copy(pending.getInvoice()));
 			result.getInvoice().setCustomerName(pending.getInvoice().getCustomer().getName());
@@ -2140,9 +2150,9 @@ public class CommonServiceImpl implements CommonService {
 
 		lot.setIsPriced(IsPriced);
 		lot.setIsHedged(IsHedged);
-		
-		lot.setQuantityHedged(FormatQuantity(QuantityHedged,lot.getCommodity(),lot.getCommodityId()));
-		lot.setQuantityPriced(FormatPrice(QuantityPriced,lot.getCommodity(),lot.getCommodityId()));
+
+		lot.setQuantityHedged(FormatQuantity(QuantityHedged, lot.getCommodity(), lot.getCommodityId()));
+		lot.setQuantityPriced(FormatPrice(QuantityPriced, lot.getCommodity(), lot.getCommodityId()));
 
 		lotRepo.SaveOrUpdate(lot);
 
@@ -2417,18 +2427,16 @@ public class CommonServiceImpl implements CommonService {
 		// int symbol = lot.getSpotDirection().equals(SpotType.Purchase) ? 1 :
 		// -1; // 正负号
 
-		BigDecimal quantityPriced = BigDecimal.ZERO; 
-		for(Pricing price:scheduled)
-		{
+		BigDecimal quantityPriced = BigDecimal.ZERO;
+		for (Pricing price : scheduled) {
 			// 全部已点价的数量全部已点价的数量
 			quantityPriced = quantityPriced.add(price.getQuantity());
 		}
-		
-		BigDecimal amount4Major = BigDecimal.ZERO; 
-		BigDecimal amount4Fee = BigDecimal.ZERO; 
-		for(Pricing price:pricings)
-		{
-			 // 按市场价格计算的批次的金额
+
+		BigDecimal amount4Major = BigDecimal.ZERO;
+		BigDecimal amount4Fee = BigDecimal.ZERO;
+		for (Pricing price : pricings) {
+			// 按市场价格计算的批次的金额
 			amount4Major = amount4Major.add(price.getQuantity().multiply(DecimalUtil.nullToZero(price.getMajor())));
 			// 该批次的全部杂费的金额
 			amount4Fee = amount4Fee.add(price.getQuantity().multiply(DecimalUtil.nullToZero(price.getFee())));
@@ -2436,26 +2444,28 @@ public class CommonServiceImpl implements CommonService {
 		amount4Major = amount4Major.add(amount4Fee);
 		amount4Major = FormatPrice(amount4Major, lot.getCommodity(), lot.getCommodityId());
 		amount4Fee = FormatPrice(amount4Fee, lot.getCommodity(), lot.getCommodityId());
-		
-		//double quantityPriced = scheduled.stream().mapToDouble(x -> x.getQuantity().doubleValue()).sum();// 全部已点价的数量全部已点价的数量
 
-		
-		//double amount4Major = pricings.stream()
-		//		.mapToDouble(x -> x.getQuantity().multiply(DecimalUtil.nullToZero(x.getMajor())).doubleValue()).sum();
-	 	
+		// double quantityPriced = scheduled.stream().mapToDouble(x ->
+		// x.getQuantity().doubleValue()).sum();// 全部已点价的数量全部已点价的数量
+
+		// double amount4Major = pricings.stream()
+		// .mapToDouble(x ->
+		// x.getQuantity().multiply(DecimalUtil.nullToZero(x.getMajor())).doubleValue()).sum();
+
 		// double amount4Premium = pricings.stream()
 		// .mapToDouble(x ->
 		// x.getQuantity().multiply(x.getPremium()).doubleValue()).sum();
-		
-		//double amount4Fee = pricings.stream().mapToDouble(x -> x.getQuantity().multiply(x.getFee()).doubleValue())
-		//		.sum(); 
-		
+
+		// double amount4Fee = pricings.stream().mapToDouble(x ->
+		// x.getQuantity().multiply(x.getFee()).doubleValue())
+		// .sum();
+
 		// double amount4Price = pricings.stream()
 		// .mapToDouble(x ->
 		// x.getQuantity().multiply(x.getMajor()).add(x.getPremium()).doubleValue()).sum();//
 		// 该批次的商品价格
 
-		//amount4Major += amount4Fee;
+		// amount4Major += amount4Fee;
 		// double amount4Final = amount4Price + (symbol * amount4Fee); //
 		// 该批次的最终金额。如果是采购，加上杂费金额；如果是销售，减去杂费金额。
 
@@ -2466,23 +2476,24 @@ public class CommonServiceImpl implements CommonService {
 				lot.setMajor(BigDecimal.ZERO);
 			} else {
 				BigDecimal dMajor = DecimalUtil.divideForPrice(amount4Major, quantityPriced);
-				lot.setMajor(FormatPrice(dMajor,lot.getCommodity(),lot.getCommodityId()));
-				//lot.setMajor(
-				//		new BigDecimal(amount4Major).divide(new BigDecimal(quantityPriced), 5, RoundingMode.HALF_EVEN));
+				lot.setMajor(FormatPrice(dMajor, lot.getCommodity(), lot.getCommodityId()));
+				// lot.setMajor(
+				// new BigDecimal(amount4Major).divide(new
+				// BigDecimal(quantityPriced), 5, RoundingMode.HALF_EVEN));
 			}
 		}
 
 		// -----------
 		// 点价价格 ( = 市场价格 + 升贴水)
-		lot.setPrice(FormatPrice(lot.getMajor().add(lot.getPremium()),lot.getCommodity(),lot.getCommodityId()));
+		lot.setPrice(FormatPrice(lot.getMajor().add(lot.getPremium()), lot.getCommodity(), lot.getCommodityId()));
 
 		// 最终的采购或销售价格 ( = 点价价格 +/- 杂费价格)
-		BigDecimal lFinal =lot.getSpotDirection().equals(SpotType.Purchase) ? lot.getPrice().add(lot.getFee())
+		BigDecimal lFinal = lot.getSpotDirection().equals(SpotType.Purchase) ? lot.getPrice().add(lot.getFee())
 				: lot.getPrice().subtract(lot.getFee());
-		lot.setFinal(FormatPrice(lFinal,lot.getCommodity(),lot.getCommodityId()));
+		lot.setFinal(FormatPrice(lFinal, lot.getCommodity(), lot.getCommodityId()));
 		// if (lot.MajorType != MajorType.Fix)
-		
-		lot.setQuantityPriced(FormatPrice(quantityPriced,lot.getCommodity(),lot.getCommodityId()));
+
+		lot.setQuantityPriced(FormatPrice(quantityPriced, lot.getCommodity(), lot.getCommodityId()));
 		// if (lot.MajorType != MajorType.Fix)
 		// lot.IsPriced = (lot.QuantityOriginal ?? 0) == lot.QuantityPriced;
 		lot.setIsPriced(IsPriced4Lot(lot));
@@ -2493,12 +2504,13 @@ public class CommonServiceImpl implements CommonService {
 			Lot splitfrom = this.lotRepo.getOneById(lot.getSplitFromId(), Lot.class);
 
 			if (splitfrom != null) {
-				lot.setMajor(FormatPrice(splitfrom.getMajor(),lot.getCommodity(),lot.getCommodityId()));
-				lot.setPrice(FormatPrice(splitfrom.getPrice(),lot.getCommodity(),lot.getCommodityId()));
+				lot.setMajor(FormatPrice(splitfrom.getMajor(), lot.getCommodity(), lot.getCommodityId()));
+				lot.setPrice(FormatPrice(splitfrom.getPrice(), lot.getCommodity(), lot.getCommodityId()));
 				lFinal = lot.getSpotDirection().equals(SpotType.Purchase) ? lot.getPrice().add(lot.getFee())
 						: lot.getPrice().subtract(lot.getFee());
-				lot.setFinal(FormatPrice(lFinal,lot.getCommodity(),lot.getCommodityId()));
-				lot.setQuantityPriced(FormatQuantity(splitfrom.getQuantityPriced(),lot.getCommodity(),lot.getCommodityId()));
+				lot.setFinal(FormatPrice(lFinal, lot.getCommodity(), lot.getCommodityId()));
+				lot.setQuantityPriced(
+						FormatQuantity(splitfrom.getQuantityPriced(), lot.getCommodity(), lot.getCommodityId()));
 				lot.setIsPriced(splitfrom.getIsPriced());
 			}
 		}
@@ -2676,103 +2688,87 @@ public class CommonServiceImpl implements CommonService {
 		}
 
 		// 计算价格
-		//BigDecimal amountDone4Other = new BigDecimal(temp.stream().mapToDouble(i -> i.getAmount().doubleValue()).sum());
-		BigDecimal amountDone4Other =  BigDecimal.ZERO;
-		for(Invoice invoice:temp){
-			amountDone4Other=amountDone4Other.add(invoice.getAmount());
+		// BigDecimal amountDone4Other = new
+		// BigDecimal(temp.stream().mapToDouble(i ->
+		// i.getAmount().doubleValue()).sum());
+		BigDecimal amountDone4Other = BigDecimal.ZERO;
+		for (Invoice invoice : temp) {
+			amountDone4Other = amountDone4Other.add(invoice.getAmount());
 		}
 
 		// 信证中的费用
 		BigDecimal lcfee = BigDecimal.ZERO;
 
-		/*where = DetachedCriteria.forClass(Legal.class);
-		where.add(Restrictions.eq("Code", "SM"));
-		Legal sm = this.legalRepo.GetQueryable(Legal.class).where(where).firstOrDefault();
-
-		for (LC l : lcs) {
-			// 计算出该信用证中SM的发票（发票不包含被调整的临时发票）
-			List<Invoice> invoicesOfSM = l.getInvoices().stream().filter(i -> i.getLegalId().equals(sm.getId()))
-					.collect(Collectors.toList());
-			List<Invoice> invoicesSMOfA = invoicesOfSM.stream()
-					.filter(i -> i.getPFA().equals(ActionStatus.InvoiceType_Adjust)).collect(Collectors.toList());
-			List<Invoice> removes = new ArrayList<>();
-			if (invoicesSMOfA.size() > 0) {
-				invoicesOfSM.forEach(i -> {
-					invoicesSMOfA.forEach(ia -> {
-						if (ia.getId().equals(i.getAdjustId()))
-							removes.add(i);
-					});
-				});
-				invoicesOfSM.removeAll(removes);
-			}
-
-			// 计算出该信用证中BVI的发票（发票不包含被调整的临时发票）
-			List<Invoice> invoicesOfBVI = l.getInvoices().stream().filter(i -> !i.getLegal().equals(sm.getId()))
-					.collect(Collectors.toList());
-			List<Invoice> invoicesBVIOfA = invoicesOfBVI.stream()
-					.filter(i -> i.getPFA().equals(ActionStatus.InvoiceType_Adjust)).collect(Collectors.toList());
-			removes.clear();
-			if (invoicesBVIOfA.size() > 0) {
-				invoicesOfBVI.forEach(i -> {
-
-					invoicesBVIOfA.forEach(ia -> {
-
-						if (ia.getId().equals(i.getAdjustId()))
-							removes.add(i);
-					});
-
-				});
-				invoicesOfBVI.removeAll(removes);
-			}
-
-			// 计算出信用证中该批次的发票
-			List<Invoice> invoicesOfLot = l.getInvoices().stream().filter(i -> i.getLotId().equals(lot.getId()))
-					.collect(Collectors.toList());
-			List<Invoice> invoicesLotOfA = invoicesOfLot.stream()
-					.filter(i -> i.getPFA().equals(ActionStatus.InvoiceType_Adjust)).collect(Collectors.toList());
-			removes.clear();
-			if (invoicesLotOfA.size() > 0) {
-				invoicesOfLot.forEach(i -> {
-
-					invoicesLotOfA.forEach(ia -> {
-
-						if (ia.getId().equals(i.getAdjustId()))
-							removes.add(i);
-					});
-
-				});
-				invoicesOfLot.removeAll(removes);
-			}
-
-			BigDecimal invoicesOfLot_sum = new BigDecimal(
-					invoicesOfLot.stream().mapToDouble(i -> i.getQuantity().doubleValue()).sum());
-
-			BigDecimal invoicesOfSM_sum = new BigDecimal(
-					invoicesOfSM.stream().mapToDouble(i -> i.getQuantity().doubleValue()).sum());
-
-			BigDecimal invoicesOfBVI_sum = new BigDecimal(
-					invoicesOfBVI.stream().mapToDouble(i -> i.getQuantity().doubleValue()).sum());
-
-			if (lot.getLegalId().equals(sm.getId())) // 商贸
-			{
-
-				// 开证费用+承兑费
-				lcfee = lcfee
-						.add(l.getKzAmount().multiply(invoicesOfLot_sum).divide(invoicesOfSM_sum, decimalAccuracy,
-								decimalType))
-						.add(l.getCdAmount().multiply(invoicesOfLot_sum).divide(invoicesOfSM_sum, decimalAccuracy,
-								decimalType));
-
-			} else // bvi
-			{
-				// 贴现费 + 议付费
-				lcfee = lcfee
-						.add(l.getTxAmount().multiply(invoicesOfLot_sum).divide(invoicesOfBVI_sum, decimalAccuracy,
-								decimalType))
-						.add(l.getYfAmount().multiply(invoicesOfLot_sum).divide(invoicesOfBVI_sum, decimalAccuracy,
-								decimalType));
-			}
-		}*/
+		/*
+		 * where = DetachedCriteria.forClass(Legal.class);
+		 * where.add(Restrictions.eq("Code", "SM")); Legal sm =
+		 * this.legalRepo.GetQueryable(Legal.class).where(where).firstOrDefault(
+		 * );
+		 * 
+		 * for (LC l : lcs) { // 计算出该信用证中SM的发票（发票不包含被调整的临时发票） List<Invoice>
+		 * invoicesOfSM = l.getInvoices().stream().filter(i ->
+		 * i.getLegalId().equals(sm.getId())) .collect(Collectors.toList());
+		 * List<Invoice> invoicesSMOfA = invoicesOfSM.stream() .filter(i ->
+		 * i.getPFA().equals(ActionStatus.InvoiceType_Adjust)).collect(
+		 * Collectors.toList()); List<Invoice> removes = new ArrayList<>(); if
+		 * (invoicesSMOfA.size() > 0) { invoicesOfSM.forEach(i -> {
+		 * invoicesSMOfA.forEach(ia -> { if (ia.getId().equals(i.getAdjustId()))
+		 * removes.add(i); }); }); invoicesOfSM.removeAll(removes); }
+		 * 
+		 * // 计算出该信用证中BVI的发票（发票不包含被调整的临时发票） List<Invoice> invoicesOfBVI =
+		 * l.getInvoices().stream().filter(i ->
+		 * !i.getLegal().equals(sm.getId())) .collect(Collectors.toList());
+		 * List<Invoice> invoicesBVIOfA = invoicesOfBVI.stream() .filter(i ->
+		 * i.getPFA().equals(ActionStatus.InvoiceType_Adjust)).collect(
+		 * Collectors.toList()); removes.clear(); if (invoicesBVIOfA.size() > 0)
+		 * { invoicesOfBVI.forEach(i -> {
+		 * 
+		 * invoicesBVIOfA.forEach(ia -> {
+		 * 
+		 * if (ia.getId().equals(i.getAdjustId())) removes.add(i); });
+		 * 
+		 * }); invoicesOfBVI.removeAll(removes); }
+		 * 
+		 * // 计算出信用证中该批次的发票 List<Invoice> invoicesOfLot =
+		 * l.getInvoices().stream().filter(i ->
+		 * i.getLotId().equals(lot.getId())) .collect(Collectors.toList());
+		 * List<Invoice> invoicesLotOfA = invoicesOfLot.stream() .filter(i ->
+		 * i.getPFA().equals(ActionStatus.InvoiceType_Adjust)).collect(
+		 * Collectors.toList()); removes.clear(); if (invoicesLotOfA.size() > 0)
+		 * { invoicesOfLot.forEach(i -> {
+		 * 
+		 * invoicesLotOfA.forEach(ia -> {
+		 * 
+		 * if (ia.getId().equals(i.getAdjustId())) removes.add(i); });
+		 * 
+		 * }); invoicesOfLot.removeAll(removes); }
+		 * 
+		 * BigDecimal invoicesOfLot_sum = new BigDecimal(
+		 * invoicesOfLot.stream().mapToDouble(i ->
+		 * i.getQuantity().doubleValue()).sum());
+		 * 
+		 * BigDecimal invoicesOfSM_sum = new BigDecimal(
+		 * invoicesOfSM.stream().mapToDouble(i ->
+		 * i.getQuantity().doubleValue()).sum());
+		 * 
+		 * BigDecimal invoicesOfBVI_sum = new BigDecimal(
+		 * invoicesOfBVI.stream().mapToDouble(i ->
+		 * i.getQuantity().doubleValue()).sum());
+		 * 
+		 * if (lot.getLegalId().equals(sm.getId())) // 商贸 {
+		 * 
+		 * // 开证费用+承兑费 lcfee = lcfee
+		 * .add(l.getKzAmount().multiply(invoicesOfLot_sum).divide(
+		 * invoicesOfSM_sum, decimalAccuracy, decimalType))
+		 * .add(l.getCdAmount().multiply(invoicesOfLot_sum).divide(
+		 * invoicesOfSM_sum, decimalAccuracy, decimalType));
+		 * 
+		 * } else // bvi { // 贴现费 + 议付费 lcfee = lcfee
+		 * .add(l.getTxAmount().multiply(invoicesOfLot_sum).divide(
+		 * invoicesOfBVI_sum, decimalAccuracy, decimalType))
+		 * .add(l.getYfAmount().multiply(invoicesOfLot_sum).divide(
+		 * invoicesOfBVI_sum, decimalAccuracy, decimalType)); } }
+		 */
 
 		// 按批次检验费用,如果预估费用中没有该类型的检验费，则费用归集到其它类型
 
@@ -3013,73 +3009,76 @@ public class CommonServiceImpl implements CommonService {
 
 	@Override
 	public Integer GetSequenceIndex(String code, Boolean UseConfirm) {
-		
+
 		if (UseConfirm) {
 			return identityGetNewIdWithConfirm(code);
-		}else{
+		} else {
 			return identityGetNewId(code);
 		}
 
-		/*String name = "proc_IdentityGetNewId"; 
-
-		if (UseConfirm) {
-			name = "proc_IdentityGetNewId_WithConfirm";
-		}
-		
-		Map<String, Object> pmap = new LinkedHashMap<>();
-
-		pmap.put("pTableName", code);
-
-		Map<String, String> omap = new LinkedHashMap<>();
-
-		omap.put("pIdentityId", ParameterType.DECIMAL.getCode());
-
-		Map<String, Object> map = this.lotRepo.ExecuteProcedureSqlOutMap(name, pmap, omap);
-
-		if (map == null || !map.containsKey("pIdentityId"))
-			return -1;
-
-		BigDecimal tmpd = new BigDecimal(-1);
-
-		tmpd = new BigDecimal(String.valueOf(map.get("pIdentityId")));
-
-		return tmpd.intValue();*/
+		/*
+		 * String name = "proc_IdentityGetNewId";
+		 * 
+		 * if (UseConfirm) { name = "proc_IdentityGetNewId_WithConfirm"; }
+		 * 
+		 * Map<String, Object> pmap = new LinkedHashMap<>();
+		 * 
+		 * pmap.put("pTableName", code);
+		 * 
+		 * Map<String, String> omap = new LinkedHashMap<>();
+		 * 
+		 * omap.put("pIdentityId", ParameterType.DECIMAL.getCode());
+		 * 
+		 * Map<String, Object> map =
+		 * this.lotRepo.ExecuteProcedureSqlOutMap(name, pmap, omap);
+		 * 
+		 * if (map == null || !map.containsKey("pIdentityId")) return -1;
+		 * 
+		 * BigDecimal tmpd = new BigDecimal(-1);
+		 * 
+		 * tmpd = new BigDecimal(String.valueOf(map.get("pIdentityId")));
+		 * 
+		 * return tmpd.intValue();
+		 */
 	}
-	
-	
-	public Integer identityGetNewId(String code){
-		String sql="select lastid from [Basis].[sys_sequence] where code ='"+code+"'";
-		Object obj=lotRepo.ExecuteScalarSql(sql);
-		Integer lastid=1;
-		if(obj!=null){
-			lastid=Integer.valueOf(String.valueOf(obj));
-			String sqlUpdate="update [Basis].[sys_sequence] set lastid="+(lastid+1)+" where code='"+code+"'";
+
+	public Integer identityGetNewId(String code) {
+		String sql = "select lastid from [Basis].[sys_sequence] where code ='" + code + "'";
+		Object obj = lotRepo.ExecuteScalarSql(sql);
+		Integer lastid = 1;
+		if (obj != null) {
+			lastid = Integer.valueOf(String.valueOf(obj));
+			String sqlUpdate = "update [Basis].[sys_sequence] set lastid=" + (lastid + 1) + " where code='" + code
+					+ "'";
 			lotRepo.ExecuteCorrectlySql3(sqlUpdate);
-		}else{
-			String sqlInsert="insert into [Basis].[sys_sequence] (code,lastid) values('"+code+"',2)";
+		} else {
+			String sqlInsert = "insert into [Basis].[sys_sequence] (code,lastid) values('" + code + "',2)";
 			lotRepo.ExecuteCorrectlySql3(sqlInsert);
 		}
 		return lastid;
 	}
-	
-	public Integer identityGetNewIdWithConfirm(String code){
-		String sql="select lastid from Basis.SYS_SEQUENCE_RESULT where code ='"+code+"' and Confirmed = 0 order by lastid";
-		List<String> obj=lotRepo.ExecuteCorrectlySql2(sql);
-		if(obj!=null&&obj.size()>0){
+
+	public Integer identityGetNewIdWithConfirm(String code) {
+		String sql = "select lastid from Basis.SYS_SEQUENCE_RESULT where code ='" + code
+				+ "' and Confirmed = 0 order by lastid";
+		List<String> obj = lotRepo.ExecuteCorrectlySql2(sql);
+		if (obj != null && obj.size() > 0) {
 			return Integer.valueOf(String.valueOf(obj.get(0)));
-		}else{
-			String sql2="select lastid from [Basis].[sys_sequence] where code ='"+code+"'";
-			Object lastid=lotRepo.ExecuteScalarSql(sql2);
-			Integer newLastid=1;
-			if(lastid!=null){
-				newLastid=Integer.valueOf(String.valueOf(lastid));
-				String sqlUpdate="update [Basis].[sys_sequence] set lastid="+(newLastid+1)+" where code='"+code+"'";
+		} else {
+			String sql2 = "select lastid from [Basis].[sys_sequence] where code ='" + code + "'";
+			Object lastid = lotRepo.ExecuteScalarSql(sql2);
+			Integer newLastid = 1;
+			if (lastid != null) {
+				newLastid = Integer.valueOf(String.valueOf(lastid));
+				String sqlUpdate = "update [Basis].[sys_sequence] set lastid=" + (newLastid + 1) + " where code='"
+						+ code + "'";
 				lotRepo.ExecuteCorrectlySql3(sqlUpdate);
-			}else{
-				String sqlInsert="insert into [Basis].[sys_sequence] (code,lastid) values('"+code+"',2)";
+			} else {
+				String sqlInsert = "insert into [Basis].[sys_sequence] (code,lastid) values('" + code + "',2)";
 				lotRepo.ExecuteCorrectlySql3(sqlInsert);
 			}
-			String sqlSysSequenceResult="insert into [Basis].[SYS_SEQUENCE_RESULT] (code,lastid,Confirmed) values('"+code+"',"+newLastid+",0)";
+			String sqlSysSequenceResult = "insert into [Basis].[SYS_SEQUENCE_RESULT] (code,lastid,Confirmed) values('"
+					+ code + "'," + newLastid + ",0)";
 			lotRepo.ExecuteCorrectlySql3(sqlSysSequenceResult);
 			return newLastid;
 		}
@@ -3088,22 +3087,21 @@ public class CommonServiceImpl implements CommonService {
 	@Override
 	public void ConfirmSequenceIndex(SysSequence sequence) {
 
-		ProcIdentityGetConfirmId(sequence.getIdentityId(),sequence.getCode());
+		ProcIdentityGetConfirmId(sequence.getIdentityId(), sequence.getCode());
 		/*
-		String name = "[dbo].[proc_IdentityGetConfirmId]";
-
-		Map<String, Object> pmap = new LinkedHashMap<String, Object>();
-
-		pmap.put("pIdentityId", sequence.getIdentityId());
-		pmap.put("pTableName", sequence.getCode());
-
-		this.lotRepo.ExecuteProcedureSql2(name, pmap);
-	 	*/
+		 * String name = "[dbo].[proc_IdentityGetConfirmId]";
+		 * 
+		 * Map<String, Object> pmap = new LinkedHashMap<String, Object>();
+		 * 
+		 * pmap.put("pIdentityId", sequence.getIdentityId());
+		 * pmap.put("pTableName", sequence.getCode());
+		 * 
+		 * this.lotRepo.ExecuteProcedureSql2(name, pmap);
+		 */
 	}
-	
-	public void ProcIdentityGetConfirmId(BigDecimal identityId,String tableName)
-	{
-		String hql= "update SysSequenceResult set Confirmed = 1 where code = :tableName and Confirmed = 0 and lastid = :identityId";
+
+	public void ProcIdentityGetConfirmId(BigDecimal identityId, String tableName) {
+		String hql = "update SysSequenceResult set Confirmed = 1 where code = :tableName and Confirmed = 0 and lastid = :identityId";
 		Map<String, Object> params = new HashMap<String, Object>();
 		params.put("tableName", tableName);
 		params.put("identityId", identityId);
@@ -3988,8 +3986,8 @@ public class CommonServiceImpl implements CommonService {
 		// BigDecimal(symbol)));
 		// 该批次的最终金额。如果是采购，加上杂费金额；如果是销售，减去杂费金额。
 		if (!lot.getMajorType().equals(MajorType.Fix)) {
-			lot.setMajor(quantityPriced.compareTo(BigDecimal.ZERO) != 0 ? DecimalUtil.divideForPrice(amount4Major, quantityPriced)
-					: BigDecimal.ZERO);
+			lot.setMajor(quantityPriced.compareTo(BigDecimal.ZERO) != 0
+					? DecimalUtil.divideForPrice(amount4Major, quantityPriced) : BigDecimal.ZERO);
 		}
 		// 点价价格 ( = 市场价格 + 升贴水)
 		lot.setPrice(DecimalUtil.nullToZero(lot.getMajor()).add(DecimalUtil.nullToZero(lot.getPremium())));
@@ -4294,7 +4292,7 @@ public class CommonServiceImpl implements CommonService {
 				notefeeCopy = storagess.get(0);
 			}
 			notefeeCopy.setRealFee(BigDecimal.ZERO);
-			if(notefeeCopy.getSummaryFeesList()!=null&&notefeeCopy.getSummaryFeesList().size()>0){
+			if (notefeeCopy.getSummaryFeesList() != null && notefeeCopy.getSummaryFeesList().size() > 0) {
 				for (SummaryFees summaryFee : notefeeCopy.getSummaryFeesList()) {
 
 					dc = DetachedCriteria.forClass(Invoice.class);
@@ -4371,7 +4369,6 @@ public class CommonServiceImpl implements CommonService {
 
 				}
 			}
-			
 
 			storages.add(notefeeCopy);
 		}
@@ -4990,82 +4987,78 @@ public class CommonServiceImpl implements CommonService {
 			return BigDecimal.ZERO;
 		}
 	}
-	
+
 	@Override
-	public BigDecimal GetM2MPrice2(String marketCode, String commodityId, String specId,List<Market> markets,Map<String,List<?>> map)
-	{
+	public BigDecimal GetM2MPrice2(String marketCode, String commodityId, String specId, List<Market> markets,
+			Map<String, List<?>> map) {
 		if (StringUtils.isBlank(marketCode))
 			return BigDecimal.ZERO;
-		if(markets.size() == 0)
+		if (markets.size() == 0)
 			return BigDecimal.ZERO;
-		
-		markets = markets.stream().filter(c->c.getCode().equalsIgnoreCase(marketCode)).collect(Collectors.toList());
-		
+
+		markets = markets.stream().filter(c -> c.getCode().equalsIgnoreCase(marketCode)).collect(Collectors.toList());
+
 		if (markets.size() > 0) {
-			return GetM2MPrice2(markets.get(0).getId(), marketCode, commodityId, specId,map);
+			return GetM2MPrice2(markets.get(0).getId(), marketCode, commodityId, specId, map);
 		} else {
 			return BigDecimal.ZERO;
 		}
 	}
-	
+
 	@Override
-	public Map<String,List<?>> GetLotM2mPrice(Map<String,List<String>> lot2Commditys)
-	{
-		Map<String,List<?>> map= new HashMap<String,List<?>>();
-		
-		for(Entry<String,List<String>> m:lot2Commditys.entrySet())
-		{
+	public Map<String, List<?>> GetLotM2mPrice(Map<String, List<String>> lot2Commditys) {
+		Map<String, List<?>> map = new HashMap<String, List<?>>();
+
+		for (Entry<String, List<String>> m : lot2Commditys.entrySet()) {
 			List<String> listComm = new ArrayList<String>();
 			switch (m.getKey().toLowerCase()) {
-				case "SFE":
-					listComm = m.getValue();
-					List<SFE> sfeList = new ArrayList<SFE>();
-					if(listComm!=null && listComm.size() >0)
-					{
-						DetachedCriteria where = DetachedCriteria.forClass(SFE.class);
-						where.add(Restrictions.in("CommodityId", listComm));
-						sfeList = this.sfeRepo.GetQueryable(SFE.class).where(where).OrderBy(Order.desc("TradeDate"))
-								.toList();
-					}
-					if(map.get(m.getKey().toLowerCase()) == null)
-						map.put(m.getKey().toLowerCase(), sfeList);
-					break;
-				case "LME":
-					listComm = m.getValue();
-					List<LME> lmeList = new ArrayList<LME>();
-					if(listComm!=null && listComm.size() >0)
-					{
-						DetachedCriteria where = DetachedCriteria.forClass(LME.class);
-						where.add(Restrictions.in("CommodityId", listComm));
-						lmeList = this.lmeRepo.GetQueryable(LME.class).where(where).OrderBy(Order.desc("TradeDate"))
-								.toList();
-					}
-					
-					if(map.get(m.getKey().toLowerCase()) == null)
-						map.put(m.getKey().toLowerCase(), lmeList);
-					break;
-				default:
-					listComm = m.getValue();
-					List<DSME> dsmeList = new ArrayList<DSME>();
-					if(listComm!=null && listComm.size() >0)
-					{
-						DetachedCriteria where = DetachedCriteria.forClass(DSME.class);
-						where.add(Restrictions.in("CommodityId", listComm));
-						dsmeList = this.dsmeRepo.GetQueryable(DSME.class).where(where).OrderBy(Order.desc("TradeDate"))
-								.toList();
-					}
-					
-					if(map.get(m.getKey().toLowerCase()) == null)
-						map.put(m.getKey().toLowerCase(), dsmeList);
-					
-					break;
+			case "SFE":
+				listComm = m.getValue();
+				List<SFE> sfeList = new ArrayList<SFE>();
+				if (listComm != null && listComm.size() > 0) {
+					DetachedCriteria where = DetachedCriteria.forClass(SFE.class);
+					where.add(Restrictions.in("CommodityId", listComm));
+					sfeList = this.sfeRepo.GetQueryable(SFE.class).where(where).OrderBy(Order.desc("TradeDate"))
+							.toList();
+				}
+				if (map.get(m.getKey().toLowerCase()) == null)
+					map.put(m.getKey().toLowerCase(), sfeList);
+				break;
+			case "LME":
+				listComm = m.getValue();
+				List<LME> lmeList = new ArrayList<LME>();
+				if (listComm != null && listComm.size() > 0) {
+					DetachedCriteria where = DetachedCriteria.forClass(LME.class);
+					where.add(Restrictions.in("CommodityId", listComm));
+					lmeList = this.lmeRepo.GetQueryable(LME.class).where(where).OrderBy(Order.desc("TradeDate"))
+							.toList();
+				}
+
+				if (map.get(m.getKey().toLowerCase()) == null)
+					map.put(m.getKey().toLowerCase(), lmeList);
+				break;
+			default:
+				listComm = m.getValue();
+				List<DSME> dsmeList = new ArrayList<DSME>();
+				if (listComm != null && listComm.size() > 0) {
+					DetachedCriteria where = DetachedCriteria.forClass(DSME.class);
+					where.add(Restrictions.in("CommodityId", listComm));
+					dsmeList = this.dsmeRepo.GetQueryable(DSME.class).where(where).OrderBy(Order.desc("TradeDate"))
+							.toList();
+				}
+
+				if (map.get(m.getKey().toLowerCase()) == null)
+					map.put(m.getKey().toLowerCase(), dsmeList);
+
+				break;
 			}
 		}
-		
+
 		return map;
 	}
 
-	public BigDecimal GetM2MPrice2(String majorMarketId, String marketCode, String commodityId, String specId,Map<String,List<?>> map) {
+	public BigDecimal GetM2MPrice2(String majorMarketId, String marketCode, String commodityId, String specId,
+			Map<String, List<?>> map) {
 
 		if (StringUtils.isEmpty(marketCode))
 			return BigDecimal.ZERO;
@@ -5074,7 +5067,7 @@ public class CommonServiceImpl implements CommonService {
 
 		switch (marketCode) {
 		case "SFE":
-			List<SFE> list = (List<SFE>)map.get("SFE");
+			List<SFE> list = (List<SFE>) map.get("SFE");
 			SFE sfe = null;
 
 			if (list != null && list.size() > 0)
@@ -5084,7 +5077,7 @@ public class CommonServiceImpl implements CommonService {
 			break;
 		case "LME":
 
-			List<LME> lmelist = (List<LME>)map.get("LME");
+			List<LME> lmelist = (List<LME>) map.get("LME");
 			LME lme = null;
 
 			if (lmelist != null && lmelist.size() > 0)
@@ -5094,7 +5087,7 @@ public class CommonServiceImpl implements CommonService {
 			break;
 		default:
 
-			List<DSME> dsmelist = (List<DSME>)map.get("DSME");
+			List<DSME> dsmelist = (List<DSME>) map.get("DSME");
 			DSME dsme = null;
 
 			if (dsmelist != null && dsmelist.size() > 0)
@@ -5107,6 +5100,7 @@ public class CommonServiceImpl implements CommonService {
 		return currentMarketPrice.setScale(2, RoundingMode.HALF_UP);
 
 	}
+
 	@Override
 	public BigDecimal GetM2MPrice(String majorMarketId, String marketCode, String commodityId, String specId) {
 
@@ -5433,8 +5427,7 @@ public class CommonServiceImpl implements CommonService {
 							storage.setSpread4Qp(null);
 							storage.setSpread4Initial(null);
 							storage.setSpread4Lot(null);
-							storage.setPrice(
-									DecimalUtil.nullToZero(storage.getMajor())
+							storage.setPrice(DecimalUtil.nullToZero(storage.getMajor())
 									.add(DecimalUtil.nullToZero(storage.getPremium()))
 									.subtract(DecimalUtil.nullToZero(storage.getRealFee())));
 						}
@@ -5504,32 +5497,34 @@ public class CommonServiceImpl implements CommonService {
 		if (position.getLot() != null) {
 			position.setFullNo(position.getLot().getFullNo());
 		}
-		if(position.getLegal()!=null) {
+		if (position.getLegal() != null) {
 			position.setLegalCode(position.getLegal().getCode());
-			position.setLegalName(position.getLegal().getName());		
+			position.setLegalName(position.getLegal().getName());
 		}
 		if (position.getBroker() != null) {
 			position.setBrokerName(position.getBroker().getName());
 		}
-		if(position.getTrader()!=null) {
+		if (position.getTrader() != null) {
 			position.setTraderName(position.getTrader().getName());
 		}
-		if(StringUtils.isNotBlank(position.getInstrumentId())) {
+		if (StringUtils.isNotBlank(position.getInstrumentId())) {
 			Instrument instrument = instrumentRepo.getOneById(position.getInstrumentId(), Instrument.class);
-			if(instrument!=null){
+			if (instrument != null) {
 				position.setInstrumentName(instrument.getName());
 			}
 		}
 
 		/*
-		position.setQuantity(
-				FormatQuantity(position.getQuantity(), position.getCommodity(), position.getCommodityId()));
-		position.setQuantityOriginal(
-				FormatQuantity(position.getQuantityOriginal(), position.getCommodity(), position.getCommodityId()));
-		position.setQuantityUnSquared(
-				FormatQuantity(position.getQuantityUnSquared(), position.getCommodity(), position.getCommodityId()));
-	 	*/
-		
+		 * position.setQuantity( FormatQuantity(position.getQuantity(),
+		 * position.getCommodity(), position.getCommodityId()));
+		 * position.setQuantityOriginal(
+		 * FormatQuantity(position.getQuantityOriginal(),
+		 * position.getCommodity(), position.getCommodityId()));
+		 * position.setQuantityUnSquared(
+		 * FormatQuantity(position.getQuantityUnSquared(),
+		 * position.getCommodity(), position.getCommodityId()));
+		 */
+
 		return position;
 	}
 
@@ -5555,11 +5550,12 @@ public class CommonServiceImpl implements CommonService {
 		square.setRefShort(square.getShort().getOurRef());
 
 		/*
-		square.setQuantity(FormatQuantity(square.getQuantity(), square.getCommodity(), square.getCommodityId()));
-		square.setQuantityShort(
-				FormatQuantity(square.getQuantityShort(), square.getCommodity(), square.getCommodityId()));
-		square.setQuantityLong(
-				FormatQuantity(square.getQuantityLong(), square.getCommodity(), square.getCommodityId()));
+		 * square.setQuantity(FormatQuantity(square.getQuantity(),
+		 * square.getCommodity(), square.getCommodityId()));
+		 * square.setQuantityShort( FormatQuantity(square.getQuantityShort(),
+		 * square.getCommodity(), square.getCommodityId()));
+		 * square.setQuantityLong( FormatQuantity(square.getQuantityLong(),
+		 * square.getCommodity(), square.getCommodityId()));
 		 */
 		return square;
 	}
@@ -5943,9 +5939,11 @@ public class CommonServiceImpl implements CommonService {
 			obj.setUnit(fund.getCommodity().getUnit());
 		}
 		/*
-		obj.setQuantity(FormatQuantity(obj.getQuantity(), fund.getCommodity(), fund.getCommodityId()));
-		obj.setInvoiceQuantity(FormatQuantity(obj.getInvoiceQuantity(), fund.getCommodity(), fund.getCommodityId()));
- 		*/
+		 * obj.setQuantity(FormatQuantity(obj.getQuantity(),
+		 * fund.getCommodity(), fund.getCommodityId()));
+		 * obj.setInvoiceQuantity(FormatQuantity(obj.getInvoiceQuantity(),
+		 * fund.getCommodity(), fund.getCommodityId()));
+		 */
 		// obj.setInvoice(SimplifyData(fund.getInvoice()));
 		if (fund.getBankReceipt() != null)
 			obj.setBankReceipt(fund.getBankReceipt());
@@ -5978,10 +5976,12 @@ public class CommonServiceImpl implements CommonService {
 		}
 
 		/*
-		invoice.setQuantity(FormatQuantity(invoice.getQuantity(), invoice.getCommodity(), invoice.getCommodityId()));
-		invoice.setQuantityDrafted(
-				FormatQuantity(invoice.getQuantityDrafted(), invoice.getCommodity(), invoice.getCommodityId()));
-	 	*/
+		 * invoice.setQuantity(FormatQuantity(invoice.getQuantity(),
+		 * invoice.getCommodity(), invoice.getCommodityId()));
+		 * invoice.setQuantityDrafted(
+		 * FormatQuantity(invoice.getQuantityDrafted(), invoice.getCommodity(),
+		 * invoice.getCommodityId()));
+		 */
 		Invoice obj = com.smm.ctrm.util.BeanUtils.copy(invoice);
 		// if (invoice.getInvoiceGrades() != null)
 		// obj.setInvoiceGrades(SimplifyData(invoice.getInvoiceGrades()));
@@ -6242,6 +6242,7 @@ public class CommonServiceImpl implements CommonService {
 	private static final char[] cnNumber = { '零', '壹', '贰', '叁', '肆', '伍', '陆', '柒', '捌', '玖' };
 	private static final char[] cnUnit = { '分', '角', '元', '拾', '佰', '仟', '万', '拾', '佰', '仟', '亿', '拾', '佰', '仟', '兆',
 			'拾', '佰', '仟' };
+
 	/**
 	 * 金额小写转大写
 	 * 
@@ -6348,11 +6349,12 @@ public class CommonServiceImpl implements CommonService {
 			}
 
 			/*
-			invoice.setQuantity(
-					FormatQuantity(invoice.getQuantity(), invoice.getCommodity(), invoice.getCommodityId()));
-			invoice.setQuantityDrafted(
-					FormatQuantity(invoice.getQuantityDrafted(), invoice.getCommodity(), invoice.getCommodityId()));
-		 	*/
+			 * invoice.setQuantity( FormatQuantity(invoice.getQuantity(),
+			 * invoice.getCommodity(), invoice.getCommodityId()));
+			 * invoice.setQuantityDrafted(
+			 * FormatQuantity(invoice.getQuantityDrafted(),
+			 * invoice.getCommodity(), invoice.getCommodityId()));
+			 */
 
 			CInvoice obj = com.smm.ctrm.util.BeanUtils.copy(invoice);
 
@@ -6412,10 +6414,10 @@ public class CommonServiceImpl implements CommonService {
 	/**
 	 * 为库存管理而生
 	 */
-	public List<C2Storage> SimplifyDataStorageHolding(List<C2Storage> storages,boolean mark) {
-		
-		int size=storages.size();
-		
+	public List<C2Storage> SimplifyDataStorageHolding(List<C2Storage> storages, boolean mark, List<SpotPriceEstimate> spotPriceEstimate, List<DSME> dsmeList) {
+
+		int size = storages.size();
+
 		for (int i = 0; i < size; i++) {
 			if (storages.get(0) == null)
 				return null;
@@ -6456,29 +6458,56 @@ public class CommonServiceImpl implements CommonService {
 				storage.setUnit(obj.getCommodity().getUnit());
 			}
 			/*
-			// 格式化数量
-			storage.setQuantity(FormatQuantity(obj.getQuantity(), obj.getCommodity(), obj.getCommodityId()));
-			storage.setGross(FormatQuantity(obj.getGross(), obj.getCommodity(), obj.getCommodityId()));
-			storage.setUnCxQuantity(FormatQuantity(obj.getUnCxQuantity(), obj.getCommodity(), obj.getCommodityId()));
-			storage.setGrossAtFactory(
-					FormatQuantity(obj.getGrossAtFactory(), obj.getCommodity(), obj.getCommodityId()));
-			storage.setDiff(FormatQuantity(obj.getDiff(), obj.getCommodity(), obj.getCommodityId()));
-			storage.setStorageQuantity(
-					FormatQuantity(storage.getGross().subtract(new BigDecimal(obj.getBundles() * 0.003f)),
-							obj.getCommodity(), obj.getCommodityId()));
-			*/
+			 * // 格式化数量 storage.setQuantity(FormatQuantity(obj.getQuantity(),
+			 * obj.getComrmodity(), obj.getCommodityId()));
+			 * storage.setGross(FormatQuantity(obj.getGross(),
+			 * obj.getCommodity(), obj.getCommodityId()));
+			 * storage.setUnCxQuantity(FormatQuantity(obj.getUnCxQuantity(),
+			 * obj.getCommodity(), obj.getCommodityId()));
+			 * storage.setGrossAtFactory(
+			 * FormatQuantity(obj.getGrossAtFactory(), obj.getCommodity(),
+			 * obj.getCommodityId()));
+			 * storage.setDiff(FormatQuantity(obj.getDiff(), obj.getCommodity(),
+			 * obj.getCommodityId())); storage.setStorageQuantity(
+			 * FormatQuantity(storage.getGross().subtract(new
+			 * BigDecimal(obj.getBundles() * 0.003f)), obj.getCommodity(),
+			 * obj.getCommodityId()));
+			 */
 			if (obj.getCustomer() != null)
 				storage.setCustomer(com.smm.ctrm.util.BeanUtils.copy(obj.getCustomer()));
 
 			if (obj.getLot() != null)
 				storage.setLot(com.smm.ctrm.util.BeanUtils.copy(obj.getLot()));
 
-			if (mark&&storage.getUnCxQuantity() != null) {
+			if (mark && storage.getUnCxQuantity() != null) {
 				storage.setQuantity(storage.getUnCxQuantity());
 			}
+			if(storage.getLot()!= null) {
+				storage.setIsPriced(storage.getLot().getIsPriced());
+			}
 			
+			storage.setPrice4Market(getMarketPrice(storage.getCommodityId(), spotPriceEstimate, dsmeList));
+
 			storages.set(i, storage);
 		}
 		return storages;
+	}
+	/**
+	 * @param CommodityId
+	 * @param dsmeList 
+	 * @return
+	 */
+	private BigDecimal getMarketPrice(String commodityId, List<SpotPriceEstimate> spotPriceEstimateList, List<DSME> dsmeList){
+		for(SpotPriceEstimate spotPrice : spotPriceEstimateList) {
+			if(spotPrice.getCommodityId().equalsIgnoreCase(commodityId)) {
+				return spotPrice.getSellPrice();
+			}
+		}
+		for(DSME dsme : dsmeList) {
+			if(dsme.getCommodityId().equalsIgnoreCase(commodityId)) {
+				return dsme.getPriceAverage();
+			}
+		}
+		return BigDecimal.ZERO;
 	}
 }

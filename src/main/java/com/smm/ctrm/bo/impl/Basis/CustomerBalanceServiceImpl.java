@@ -934,6 +934,7 @@ public class CustomerBalanceServiceImpl implements CustomerBalanceService {
 		
 		if(cusBal!=null){
 			
+			this.cusBalanceRepository.getCurrentSession().evict(cusBal);//将实体对象清除游离状态，避免set属性后执行update操作
 			cusBal.setReceipt(cusBal.getReceipt().add(receipt));
 			cusBal.setPay(cusBal.getPay().add(pay));
 			maps.put(key, cusBal);

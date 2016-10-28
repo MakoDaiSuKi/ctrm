@@ -185,9 +185,9 @@ public class DailyReportServiceImpl implements DailyReportService {
 	private List<FundReport> getFundReports(String Flag, Date beginDate, Date endDate) {
 		StringBuilder hql = new StringBuilder();
 		hql.append(
-				"select new com.smm.ctrm.dto.res.ReceiptShipDailyReport.FundReport(fund.Legal.Name, fund.Contract.HeadNo, fund.Customer.Name, fund.Amount, "
+				"select new com.smm.ctrm.dto.res.ReceiptShipDailyReport.FundReport(fund.Legal.Name, fund.Lot.FullNo, fund.Customer.Name, fund.Amount, "
 						+ "fund.Currency, fund.Lot.Quantity, fund.Lot.QuantityDelivered, fund.Lot.Final, fund.Lot.IsDelivered, fund.Lot.AmountFunded, fund.Lot.AmountFunded, fund.TradeDate)")
-				.append("from Fund fund ").append("left join fund.Legal ").append("left join fund.Contract ")
+				.append("from Fund fund ").append("left join fund.Legal ")
 				.append("left join fund.Customer ").append("left join fund.Lot ")
 				.append("where fund.TradeDate >= :beginDate and fund.TradeDate <= :endDate ")
 				.append("and fund.Lot.SpotDirection = :Flag");
@@ -264,9 +264,9 @@ public class DailyReportServiceImpl implements DailyReportService {
 	private List<LotReport> getTodayLotReports(String Flag, Date beginDate, Date endDate, LotChangedToday changed) {
 		StringBuilder hql = new StringBuilder();
 		hql.append("select new com.smm.ctrm.dto.res.ReceiptShipDailyReport.LotReport(")
-				.append("lot.Id, lot.Legal.Name, lot.Commodity.Name, lot.Spec.Name, lot.BrandNames, lot.Warehouse.Name, lot.Customer.Name, lot.FullNo, lot.Final, lot.Quantity, lot.QuantityDelivered, lot.Contract.TransactionType, lot.TradeDate, lot.CreatedAt, '') ")
+				.append("lot.Id, lot.Legal.Name, lot.Commodity.Name, lot.Spec.Name, lot.BrandNames, lot.Contract.RuleWareHouseNames, lot.Customer.Name, lot.FullNo, lot.Final, lot.Quantity, lot.QuantityDelivered, lot.Contract.TransactionType, lot.TradeDate, lot.CreatedAt, '') ")
 				.append("from Lot lot ").append("left join lot.Legal ").append("left join lot.Commodity ")
-				.append("left join lot.Spec ").append("left join lot.Warehouse ").append("left join lot.Customer ")
+				.append("left join lot.Spec ").append("left join lot.Customer ")
 				.append("left join lot.Contract ")
 				.append("where lot.CreatedAt >= :beginDate and lot.CreatedAt <= :endDate ")
 				.append("and lot.SpotDirection = :Flag ");
@@ -317,7 +317,7 @@ public class DailyReportServiceImpl implements DailyReportService {
 	private LotChangedToday getLotChangedToday(String Flag) {
 		Date startDate = DateUtil.startOfTodDay(new Date());
 		Date endDate = DateUtil.endOfTodDay(new Date());
-		LotChangedToday changed = new LotChangedToday();
+ 		LotChangedToday changed = new LotChangedToday();
 		String sellOrBuy = Flag.substring(0, 1);
 		if (Flag.substring(3, 4).equalsIgnoreCase(isShow)) {
 			changed.setDeliveredList(lotRepo.getCurrentSession()
@@ -434,7 +434,8 @@ public class DailyReportServiceImpl implements DailyReportService {
 	private List<ReceiptShipReport> getReceiptShipReports(String Flag, Date beginDate, Date endDate) {
 		StringBuilder hql = new StringBuilder();
 		hql.append(
-				"select new com.smm.ctrm.dto.res.ReceiptShipDailyReport.ReceiptShipReport(rs.ReceiptShipNo, rs.Lot.FullNo, rs.Weight, rs.Lot.QuantityDelivered, rs.WhName, rs.TruckNo, rs.DeliveryUnit, rs.DeliveryMan, rs.DeliveryManIDCard, rs.DeliveryTruckNo, rs.ReceiptShipDate)")
+				"select new com.smm.ctrm.dto.res.ReceiptShipDailyReport.ReceiptShipReport(rs.ReceiptShipNo, rs.Lot.FullNo, rs.Weight, rs.Lot.QuantityDelivered, "
+				+ "rs.WhName, rs.DeliveryTruckNo, rs.DeliveryUnit, rs.DeliveryMan, rs.DeliveryManIDCard, rs.DeliveryTruckNo, rs.ReceiptShipDate)")
 				.append("from ReceiptShip rs ").append("left join rs.Lot ")
 				.append("where rs.ReceiptShipDate >= :beginDate and rs.ReceiptShipDate <= :endDate ")
 				.append("and rs.Lot.SpotDirection = :Flag");
@@ -483,7 +484,7 @@ public class DailyReportServiceImpl implements DailyReportService {
 	public void DailyToJson(String Flag, Date date) throws IOException {
 
 		DailyReportParams dailyReportParams = new DailyReportParams();
-		dailyReportParams.setFlag(Flag + "YYYY");
+		dailyReportParams.setFlag(Flag + "YYYNYY");
 		dailyReportParams.setBeginDate(DateUtil.startOfTodDay(DateUtil.doFormatDate(date, "")));
 		dailyReportParams.setEndDate(DateUtil.endOfTodDay(DateUtil.doFormatDate(date, "")));
 		DailyReport dailyReport = getDailyReport(dailyReportParams);

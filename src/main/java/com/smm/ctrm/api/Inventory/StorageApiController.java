@@ -1350,7 +1350,7 @@ public class StorageApiController extends BaseApiController {
 			if(id == null)
 				return new ActionResult<>(false, "参数有误");
 			
-			return storageService.DeleteStorageById(id);
+			return storageService.DeleteStorageFeeById(id);
 		} catch (Exception e) {
 			logger.error(e.getMessage(), e);
 			return new ActionResult<>(false, e.getMessage());

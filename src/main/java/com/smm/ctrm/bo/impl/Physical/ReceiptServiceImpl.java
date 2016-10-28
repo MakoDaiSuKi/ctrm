@@ -28,6 +28,7 @@ import com.smm.ctrm.domain.Basis.Brand;
 import com.smm.ctrm.domain.Basis.Commodity;
 import com.smm.ctrm.domain.Basis.Spec;
 import com.smm.ctrm.domain.Basis.User;
+import com.smm.ctrm.domain.Basis.Warehouse;
 import com.smm.ctrm.domain.Physical.Contract;
 import com.smm.ctrm.domain.Physical.Fund;
 import com.smm.ctrm.domain.Physical.Lot;
@@ -76,6 +77,9 @@ public class ReceiptServiceImpl implements ReceiptService {
 	
 	@Autowired
 	HibernateRepository<User> userRepository;
+	
+	@Autowired
+	HibernateRepository<Warehouse> warehouseRepo;
 	
 	@Autowired
 	StorageService storageService;
@@ -169,6 +173,12 @@ public class ReceiptServiceImpl implements ReceiptService {
 		if (receiptShip.getIsIniatiated()) {
 			receiptShip.setIsApproved(true);
 			receiptShip.setStatus(Status.Agreed);
+		}
+		if(StringUtils.isNotBlank(receiptShip.getWhId())&& StringUtils.isBlank(receiptShip.getWhName())) {
+			Warehouse warehouse = warehouseRepo.getOneById(receiptShip.getWhId(), Warehouse.class);
+			if(warehouse != null) {
+				receiptShip.setWhName(warehouse.getName());
+			}
 		}
 		
 		// 发货单

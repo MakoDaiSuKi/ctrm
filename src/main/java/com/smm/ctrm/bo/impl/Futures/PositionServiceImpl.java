@@ -1481,7 +1481,7 @@ public class PositionServiceImpl implements PositionService {
 	public List<Position> Positions(Criteria criteria, int pageSize, int pageIndex, RefUtil total, String sortBy,
 			String orderBy) {
 		List<Position> list = repository.GetPage(criteria, pageSize, pageIndex, sortBy, orderBy, total).getData();
-		return assemblingBeanList(list);
+		return list;
 	}
 
 	/**
@@ -1523,153 +1523,6 @@ public class PositionServiceImpl implements PositionService {
 			}
 		}
 		return SmLots;
-	}
-
-	/**
-	 * 以下是打掉关系
-	 */
-	public List<Position> assemblingBeanList(List<Position> ct) {
-		if (ct.size() == 0)
-			return null;
-
-		List<String> marketIds = new ArrayList<>();
-		List<String> commodityIds = new ArrayList<>();
-		// List<String> brokerIds=new ArrayList<>();
-		// List<String> customerIds=new ArrayList<>();
-		List<String> lotIds = new ArrayList<>();
-		ct.forEach(pt -> {
-			if (pt.getMarketId() != null) {
-				marketIds.add(pt.getMarketId());
-			}
-			if (pt.getCommodityId() != null) {
-				commodityIds.add(pt.getCommodityId());
-			}
-			// if(pt.getBrokerId()!=null){
-			// brokerIds.add(pt.getBrokerId());
-			// }
-			// if(pt.getCustomerId()!=null){
-			// customerIds.add(pt.getCustomerId());
-			// }
-			if (pt.getLotId() != null) {
-				lotIds.add(pt.getLotId());
-			}
-		});
-		List<Market> markets = new ArrayList<>();
-		if (marketIds.size() > 0) {
-			DetachedCriteria dc1 = DetachedCriteria.forClass(Market.class);
-			dc1.add(Restrictions.in("Id", marketIds));
-			markets = this.marketRepository.GetQueryable(Market.class).where(dc1).toList();
-		}
-		List<Commodity> commoditys = new ArrayList<>();
-		if (commodityIds.size() > 0) {
-			DetachedCriteria dc2 = DetachedCriteria.forClass(Commodity.class);
-			dc2.add(Restrictions.in("Id", commodityIds));
-			commoditys = this.commodityRepository.GetQueryable(Commodity.class).where(dc2).toList();
-		}
-		// List<Broker> brokers=new ArrayList<>();
-		// if(brokerIds.size()>0){
-		// DetachedCriteria dc3=DetachedCriteria.forClass(Broker.class);
-		// dc3.add(Restrictions.in("Id", brokerIds));
-		// brokers=this.brokerRepository.GetQueryable(Broker.class).where(dc3).toList();
-		// }
-		// List<Customer> customers=new ArrayList<>();
-		// if(customerIds.size()>0){
-		// DetachedCriteria dc4=DetachedCriteria.forClass(Customer.class);
-		// dc4.add(Restrictions.in("Id", customerIds));
-		// customers=this.customerRepository.GetQueryable(Customer.class).where(dc4).toList();
-		// }
-		List<Lot> lots = new ArrayList<>();
-		if (lotIds.size() > 0) {
-			DetachedCriteria dc5 = DetachedCriteria.forClass(Lot.class);
-			dc5.add(Restrictions.in("Id", lotIds));
-			lots = this.lotRepository.GetQueryable(Lot.class).where(dc5).toList();
-		}
-		for (Position pt : ct) {
-			if (markets.size() > 0) {
-				markets.forEach(m -> {
-					if (m.getId().equals(pt.getMarketId())) {
-						pt.setMarket(m);
-					}
-				});
-			}
-			if (commoditys.size() > 0) {
-				commoditys.forEach(m -> {
-					if (m.getId().equals(pt.getCommodityId())) {
-						pt.setCommodity(m);
-					}
-				});
-			}
-			// if(brokers.size()>0){
-			// brokers.forEach(m->{
-			// if(m.getId().equals(pt.getBrokerId())){
-			// pt.setBroker(m);
-			// }
-			// });
-			// }
-			// if(customers.size()>0){
-			// customers.forEach(m->{
-			// if(m.getId().equals(pt.getCustomerId())){
-			// pt.setCustomer(m);
-			// }
-			// });
-			// }
-			if (lots.size() > 0) {
-				lots.forEach(m -> {
-					if (m.getId().equals(pt.getLotId())) {
-						pt.setLot(m);
-					}
-				});
-			}
-		}
-
-		List<String> contractIds = new ArrayList<>();
-		ct.forEach(pt -> {
-			if (pt.getLot() != null && pt.getLot().getContractId() != null) {
-				contractIds.add(pt.getLot().getContractId());
-			}
-		});
-
-		List<Contract> contracts = new ArrayList<>();
-		if (contractIds.size() > 0) {
-			DetachedCriteria dc6 = DetachedCriteria.forClass(Contract.class);
-			dc6.add(Restrictions.in("Id", contractIds));
-			contracts = this.contractRepository.GetQueryable(Contract.class).where(dc6).toList();
-		}
-		for (Position pt : ct) {
-			if (contracts.size() > 0) {
-				contracts.forEach(m -> {
-					if (pt.getLot() != null && m.getId().equals(pt.getLot().getContractId())) {
-						pt.getLot().setContract(m);
-					}
-				});
-			}
-		}
-
-		List<String> legalIds = new ArrayList<>();
-		ct.forEach(pt -> {
-			if (pt.getLot() != null && pt.getLot().getContract() != null
-					&& pt.getLot().getContract().getLegalId() != null) {
-				legalIds.add(pt.getLot().getContract().getLegalId());
-			}
-		});
-
-		List<Legal> legals = new ArrayList<>();
-		if (contractIds.size() > 0) {
-			DetachedCriteria dc7 = DetachedCriteria.forClass(Legal.class);
-			dc7.add(Restrictions.in("Id", contractIds));
-			legals = this.legalRepository.GetQueryable(Legal.class).where(dc7).toList();
-		}
-		for (Position pt : ct) {
-			if (legals.size() > 0) {
-				legals.forEach(m -> {
-					if (pt.getLot() != null && pt.getLot().getContract() != null
-							&& m.getId().equals(pt.getLot().getContract().getLegalId())) {
-						pt.getLot().getContract().setLegal(m);
-					}
-				});
-			}
-		}
-		return ct;
 	}
 
 	public void assemblingBean(Position pt) {
@@ -1959,6 +1812,9 @@ public class PositionServiceImpl implements PositionService {
 				if(lot.getQuantityHedged() != null && lot.getQuantityHedged().compareTo(BigDecimal.ZERO) > 0) {
 					return new ActionResult<>(false, "所选批次必须未套保");
 				}
+				if(lot.getIsArbitrage() != null && lot.getIsArbitrage()){ 
+					return new ActionResult<>(false, "所选批次必须未套利");
+				}
 				if(!lot.getIsPriced()) {
 					return new ActionResult<>(false, "必须是完成点价的批次");
 				}
@@ -1966,13 +1822,27 @@ public class PositionServiceImpl implements PositionService {
 		} else if (position.getPositions() != null) {
 			List<Position> positions = position.getPositions();
 			if(positions.size() == 0) {
-				return new ActionResult<>(false, "选择的跨期头寸不能为空");
+				return new ActionResult<>(false, "所选跨期头寸不能为空");
+			}
+			BigDecimal sumQuantity = BigDecimal.ZERO;
+			for(Position p: positions) {
+				if(!p.getCommodityId().equalsIgnoreCase(p.getCommodityId())) {
+					return new ActionResult<>(false, "所选头寸应同品种");
+				}
+				if(p.getQuantity().signum() == 0) {
+					return new ActionResult<>(false, "所选头寸数量不能为零");
+				}
+				if(position.getQuantity().signum() == p.getQuantity().signum()) {
+					return new ActionResult<>(false, "所选头寸应与当前头寸反方向");
+				}
+				sumQuantity = sumQuantity.add(p.getQuantity());
+			}
+			if(sumQuantity.abs().compareTo(BigDecimal.ZERO) == 0) {
+				return new ActionResult<>(false, "所选头寸数量总数不能为零");
 			}
 		} else {
 			return new ActionResult<>(false, "所选批次和头寸数量为空");
 		}
-		
-		
 		
 		Position parentPosition = repository.getOneById(position.getId(), Position.class);
 		parentPosition.setQuantity(parentPosition.getQuantity().subtract(splitPosition.getQuantity()));
@@ -1999,6 +1869,7 @@ public class PositionServiceImpl implements PositionService {
 				positionLot.setPositionId(splitPosition.getId());
 				positionLotRepo.SaveOrUpdate(positionLot);
 				p.setIsArbitrage(true);
+				p.setPurpose("A");
 				repository.SaveOrUpdate(p);
 			}
 		}

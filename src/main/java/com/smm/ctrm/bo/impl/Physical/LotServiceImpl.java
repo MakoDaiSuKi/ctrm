@@ -1225,7 +1225,7 @@ public class LotServiceImpl implements LotService {
 
 		List<Lot> lotList = this.repository.GetQueryable(Lot.class).where(where).toList();
 
-		lotList = this.commonService.SimplifyDataLotList(assemble(lotList));
+		lotList = this.commonService.SimplifyDataLotList(lotList);
 
 		return new ActionResult<>(true, "success", lotList);
 	}
@@ -4021,7 +4021,7 @@ public class LotServiceImpl implements LotService {
 	@Override
 	public List<Lot> Lots(Criteria criteria, int pageSize, int pageIndex, String sortBy, String orderBy,
 			RefUtil total) {
-		return assemble(this.repository.GetPage(criteria, pageSize, pageIndex, sortBy, orderBy, total).getData());
+		return this.repository.GetPage(criteria, pageSize, pageIndex, sortBy, orderBy, total).getData();
 	}
 
 	/**
@@ -5479,34 +5479,6 @@ public class LotServiceImpl implements LotService {
 		return ct;
 	}
 
-	public List<Lot> assemble(List<Lot> lots) {
-		List<String> lotIds = new ArrayList<>();
-		lots.forEach(p -> {
-			if (p.getMajorMarketId() != null) {
-				lotIds.add(p.getMajorMarketId());
-			}
-		});
-		if (lotIds.size() > 0) {
-			DetachedCriteria dc = DetachedCriteria.forClass(Market.class);
-			dc.add(Restrictions.in("Id", lotIds));
-			List<Market> markets = this.marketRepository.GetQueryable(Market.class).where(dc).toList();
-			if (markets.size() > 0) {
-				lots.forEach(p -> {
-					markets.forEach(m -> {
-						if (m.getId().equals(p.getMajorMarketId())) {
-							p.setMajorMarket(m);
-						}
-					});
-				});
-			}
-		}
-		return lots;
-	}
-
-	public Lot assemble(Lot lot) {
-
-		return lot;
-	}
 
 	@Override
 	public ActionResult<LotPnL> NewLoadLotSettle(Param4LotPnL param4LotPnL) {

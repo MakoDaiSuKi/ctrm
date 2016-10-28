@@ -30,5 +30,5 @@ public class MessageCtrm {
 	
 	public static final String DuplicateFeeCode = "费用编号重复。";
 	
-
+	public static final String SYS_ERROR = "系统异常。";
 }

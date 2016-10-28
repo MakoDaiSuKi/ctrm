@@ -11,6 +11,8 @@ import javax.persistence.JoinColumn;
 import javax.persistence.ManyToOne;
 import javax.persistence.Table;
 
+import org.hibernate.annotations.Cache;
+import org.hibernate.annotations.CacheConcurrencyStrategy;
 import org.hibernate.annotations.Fetch;
 import org.hibernate.annotations.FetchMode;
 import org.hibernate.annotations.NotFound;
@@ -22,6 +24,7 @@ import com.smm.ctrm.domain.Basis.Commodity;
 
 @Entity
 @Table(name = "SpotPriceEstimate", schema = "Physical")
+@Cache(usage=CacheConcurrencyStrategy.NONSTRICT_READ_WRITE)
 public class SpotPriceEstimate extends HibernateEntity {
 
 	/**

@@ -12,7 +12,7 @@ import com.smm.ctrm.util.RefUtil;
 public interface Position4BrokerService {
 	ActionResult<String> Square();
 	Criteria GetCriteria();
-	ActionResult<String> Save(Position4Broker position);
+	ActionResult<Position4Broker> Save(Position4Broker position);
 	ActionResult<String> Delete(String id);
 	ActionResult<String> SplitPosition(CpSplitPosition4Broker cpSplitPosition, String userId);
 	ActionResult<Position4Broker> GetById(String positionId);
@@ -20,5 +20,7 @@ public interface Position4BrokerService {
 	List<Position4Broker> Positions(Criteria criteria, int pageSize, int pageIndex, RefUtil total, String sortBy,
 			String orderBy);
 	ActionResult<String> posDelivery(Position4BrokerParams pos4bParams);
+	ActionResult<String> Unravel(Position4BrokerParams pos4bParams);
+	ActionResult<String> ChangeMonth(Position4BrokerParams pos4bParams) throws Exception;
 
 }

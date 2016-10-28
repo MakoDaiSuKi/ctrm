@@ -141,7 +141,7 @@ public class C2Storage extends HibernateEntity {
 	 */
 	@Transient
 	@JsonProperty(value = "Price4Market")
-	private String Price4Market;
+	private BigDecimal Price4Market;
 	/**
 	 *
 	 */
@@ -2477,11 +2477,11 @@ public class C2Storage extends HibernateEntity {
 		IsPriced = isPriced;
 	}
 
-	public String getPrice4Market() {
+	public BigDecimal getPrice4Market() {
 		return Price4Market;
 	}
 
-	public void setPrice4Market(String price4Market) {
+	public void setPrice4Market(BigDecimal price4Market) {
 		Price4Market = price4Market;
 	}
 

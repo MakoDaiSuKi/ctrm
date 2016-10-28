@@ -24,6 +24,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.smm.ctrm.bo.Basis.ProductService;
 import com.smm.ctrm.bo.Common.CommonService;
+import com.smm.ctrm.bo.Finance.FundService;
+import com.smm.ctrm.bo.Finance.InvoiceService;
 import com.smm.ctrm.bo.Physical.ContractService;
 import com.smm.ctrm.bo.Physical.LotService;
 import com.smm.ctrm.bo.Physical.ReceiptService;
@@ -38,6 +40,7 @@ import com.smm.ctrm.domain.Basis.GlobalSet;
 import com.smm.ctrm.domain.Basis.Legal;
 import com.smm.ctrm.domain.Basis.Product;
 import com.smm.ctrm.domain.Basis.User;
+import com.smm.ctrm.domain.Basis.Warehouse;
 import com.smm.ctrm.domain.Physical.Contract;
 import com.smm.ctrm.domain.Physical.Fund;
 import com.smm.ctrm.domain.Physical.Grade;
@@ -114,6 +117,10 @@ public class ContractServiceImpl implements ContractService {
 
 	@Autowired
 	private HibernateRepository<Storage> storageRepository;
+	
+	@Autowired
+	private HibernateRepository<Warehouse> warehouseRepository;
+	
 
 	@Autowired
 	private CommonService commonService;
@@ -129,6 +136,12 @@ public class ContractServiceImpl implements ContractService {
 
 	@Autowired
 	private ReceiptService receiptService;
+	
+	@Autowired
+	private FundService fundService;
+	
+	@Autowired
+	private InvoiceService invoiceService;
 
 	@Autowired
 	private HibernateRepository<CustomerTitle> ctrepository;
@@ -1173,6 +1186,9 @@ public class ContractServiceImpl implements ContractService {
 		contract.setPricer("us");
 		contract.setCustomerTitleId(ct.size() > 0 ? ct.get(0).getId() : "");
 		contract.setCustomerTitleName(ct.size() > 0 ? ct.get(0).getName() : "");
+		contract.setBrandIds(icp.getBrandIds());
+		contract.setBrandNames(icp.getBrandNames());
+		
 
 		// 默认参数
 		contract.setSpotType("内贸");
@@ -1209,6 +1225,10 @@ public class ContractServiceImpl implements ContractService {
 		lot.setBrandNames(icp.getBrandNames());
 		lot.setIsOriginalLot(false);
 		lot.setIsSplitLot(false);
+		lot.setIsFunded(false);
+		lot.setIsDelivered(false);
+		lot.setIsInvoiced(false);
+		lot.setIsHedged(false);;
 		lot.setQuantityLess(icp.getQuantity().multiply(new BigDecimal(0.98).setScale(4, BigDecimal.ROUND_HALF_UP)));
 		lot.setQuantityMore(icp.getQuantity().multiply(new BigDecimal(1.02).setScale(4, BigDecimal.ROUND_HALF_UP)));
 		lot.setQuantityDelivered(BigDecimal.ZERO);
@@ -1383,9 +1403,10 @@ public class ContractServiceImpl implements ContractService {
 
 	/**
 	 * 快捷订单
+	 * @throws Exception 
 	 */
-	@Override
-	public ActionResult<CpContract> fastContract(CpContract contract) {
+	@Transactional(readOnly = false)
+	public ActionResult<CpContract> fastContract(CpContract contract) throws Exception {
 
 		Contract curContract = contract.getCurContract();
 
@@ -1393,6 +1414,27 @@ public class ContractServiceImpl implements ContractService {
 
 		Storage curStorage = contract.getCurStorage();
 
+		if(curLot.getPrice().compareTo(BigDecimal.ZERO)<=0){
+			return new ActionResult<>(false, "价格不能为少于等于零",contract);
+		}
+		List<Storage> storags=new ArrayList<>();
+		if(curContract.getSpotDirection().equals(SpotType.Sell)){
+			DetachedCriteria dc=DetachedCriteria.forClass(Storage.class);
+			dc.add(Restrictions.eq("WarehouseId", curStorage.getWarehouseId()));
+			dc.add(Restrictions.eq("CommodityId", curStorage.getCommodityId()));
+			dc.add(Restrictions.eq("BrandId", curStorage.getBrandId()));
+			dc.add(Restrictions.eq("SpecId", curStorage.getSpecId()));
+			dc.add(Restrictions.eqOrIsNull("GradeSetId", curStorage.getGradeSetId()));
+			dc.add(Restrictions.eq("MT", "T"));
+			dc.add(Restrictions.eq("IsOut", false));
+			dc.add(Restrictions.eq("IsIn", true));
+			dc.addOrder(Order.desc("CreatedAt"));
+			storags=this.storageRepository.GetQueryable(Storage.class).where(dc).toList();
+			if(storags==null||storags.size()==0){
+				return new ActionResult<>(false, "没有库存不能做销售订单。",contract);
+			}
+		}
+		Warehouse wh=this.warehouseRepository.getOneById(curStorage.getWarehouseId(), Warehouse.class);
 		/**
 		 * 保存合同
 		 */
@@ -1400,7 +1442,9 @@ public class ContractServiceImpl implements ContractService {
 		curContract.setCreatedId(loginInfo.getUserId());
 		curContract.setIsApproved(true);
 		curContract.setStatus(1);
-		String contractId = this.contractRepository.SaveOrUpdateRetrunId(curContract);
+		curContract.setRuleWareHouseIds(curStorage.getWarehouseId());
+		curContract.setRuleWareHouseNames(wh.getName());
+		String contractId=this.contractRepository.SaveOrUpdateRetrunId(curContract);
 		curContract.setId(contractId);
 		curLot.setContractId(contractId);
 		curLot.setCreatedId(loginInfo.getUserId());
@@ -1414,14 +1458,17 @@ public class ContractServiceImpl implements ContractService {
 		curLot.setQuantityFunded(curStorage.getQuantity());
 		curLot.setIsInvoiced(curLot.getQuantity().compareTo(curStorage.getQuantity()) > 0 ? false : true);
 		curLot.setIsPriced(true);
-		if (curStorage.getQuantity().compareTo(curLot.getQuantityMore()) <= 0
-				&& curStorage.getQuantity().compareTo(curLot.getQuantityLess()) >= 0) {
+		if(curContract.getHedgeRatio() != null && curContract.getHedgeRatio().compareTo(BigDecimal.ZERO) == 0 )
+			curLot.setIsHedged(true);
+		
+		if(curStorage.getQuantity().compareTo(curLot.getQuantityMore())<=0&&curStorage.getQuantity().compareTo(curLot.getQuantityLess())>=0){
 			curLot.setIsDelivered(true);
 			curLot.setIsFunded(true);
 		} else {
 			curLot.setIsDelivered(false);
 			curLot.setIsFunded(false);
 		}
+		curLot.setCurrency("CNY");
 		curLot.setIsInvoiced(true);
 		String lotId = this.lotRepository.SaveOrUpdateRetrunId(curLot);
 		curLot.setId(lotId);
@@ -1431,28 +1478,13 @@ public class ContractServiceImpl implements ContractService {
 			/**
 			 * 保存发货
 			 */
-			DetachedCriteria dc = DetachedCriteria.forClass(Storage.class);
-			dc.add(Restrictions.eq("WarehouseId", curStorage.getWarehouseId()));
-			dc.add(Restrictions.eq("CommodityId", curStorage.getCommodityId()));
-			dc.add(Restrictions.eq("BrandId", curStorage.getBrandId()));
-			dc.add(Restrictions.eq("SpecId", curStorage.getSpecId()));
-			dc.add(Restrictions.eqOrIsNull("GradeSetId", curStorage.getGradeSetId()));
-			dc.add(Restrictions.eq("MT", "T"));
-			dc.add(Restrictions.eq("IsOut", false));
-			dc.add(Restrictions.eq("IsIn", true));
-			dc.addOrder(Order.desc("CreatedAt"));
-			List<Storage> storags = this.storageRepository.GetQueryable(Storage.class).where(dc).toList();
-			if (storags == null || storags.size() == 0) {
-				return new ActionResult<>(false, "没有库存不能做销售订单。", contract);
-			}
-
-			BigDecimal total = BigDecimal.ZERO;
-			for (int i = 0; i < storags.size(); i++) {
-				total = total.add(storags.get(i).getQuantity());
-				if (total.compareTo(curStorage.getQuantity()) == 0) {
-					int j = i;
-					subStorage = storags.subList(0, j + 1);
-					saveSellStorage(subStorage, curContract, curLot, curStorage);
+			BigDecimal total=BigDecimal.ZERO;
+			for (int i=0;i<storags.size();i++) {
+				total=total.add(storags.get(i).getQuantity());
+				if(total.compareTo(curStorage.getQuantity())==0){
+					int j=i;
+					subStorage=storags.subList(0, j+1);
+					saveSellStorage(subStorage,curContract,curLot,curStorage);
 					break;
 				} else if (total.compareTo(curStorage.getQuantity()) > 0) {
 
@@ -1495,7 +1527,8 @@ public class ContractServiceImpl implements ContractService {
 					break;
 				} else {
 					if (i == storags.size() - 1) {
-						return new ActionResult<>(false, "库存不足。");
+						throw new Exception("库存不足。");
+						//return new ActionResult<>(false, "库存不足。");
 					}
 				}
 			}
@@ -1521,8 +1554,15 @@ public class ContractServiceImpl implements ContractService {
 			rs.setWhName(curContract.getRuleWareHouseNames());
 			rs.setWhOutEntryDate(new Date());
 			rs.setCreatedId(loginInfo.getUserId());
-			String rsId = this.receiptShipRepo.SaveOrUpdateRetrunId(rs);
+			rs.setCustomerId(curStorage.getCustomerId());
+			rs.setWhId(curStorage.getWarehouseId());
+			rs.setWhName(wh.getName());
+			
+			rs.setCustomerName(curStorage.getCustomerName());
+			
+			String rsId=this.receiptShipRepo.SaveOrUpdateRetrunId(rs);
 			curStorage.setRefId(rsId);
+			curStorage.setRefName(ReceiptShip.class.getSimpleName());
 			curStorage.setCreatedId(loginInfo.getUserId());
 			curStorage.setLotId(lotId);
 			curStorage.setIsIn(true);
@@ -1534,6 +1574,7 @@ public class ContractServiceImpl implements ContractService {
 			curStorage.setQuantityInvoiced(curLot.getQuantity());
 			curStorage.setAmount(curStorage.getQuantity().multiply(curLot.getPrice()));
 			curStorage.setIsBorrow(false);
+			curStorage.setCreatedId(loginInfo.getUserId());
 			this.storageRepository.SaveOrUpdateRetrunId(curStorage);
 			subStorage.clear();
 			subStorage.add(curStorage);
@@ -1618,8 +1659,8 @@ public class ContractServiceImpl implements ContractService {
 		invoice.setTax(invoice.getAmount().divide(new BigDecimal(1.17), 4, BigDecimal.ROUND_HALF_UP)
 				.multiply(new BigDecimal(0.17)).setScale(2, BigDecimal.ROUND_HALF_UP));
 		invoice.setExcludingTaxAmount(invoice.getAmount().subtract(invoice.getTax()));
-		this.fundRepository.SaveOrUpdate(fund);
-		this.invoiceRepo.SaveOrUpdate(invoice);
+		this.fundService.SaveReceive(fund);
+		this.invoiceService.Save(invoice);
 		return new ActionResult<>(true, "保存成功.", contract);
 	}
 
@@ -1628,6 +1669,7 @@ public class ContractServiceImpl implements ContractService {
 	 */
 	private void saveSellStorage(List<Storage> subStorage, Contract contract, Lot lot, Storage curStorage) {
 		LoginInfoToken loginInfo = LoginHelper.GetLoginInfo();
+		Warehouse wh=this.warehouseRepository.getOneById(curStorage.getWarehouseId(), Warehouse.class);
 		for (Storage storage : subStorage) {
 			ReceiptShip rs = new ReceiptShip();
 
@@ -1647,12 +1689,18 @@ public class ContractServiceImpl implements ContractService {
 			rs.setWhName(contract.getRuleWareHouseNames());
 			rs.setWhOutEntryDate(new Date());
 			rs.setCreatedId(loginInfo.getUserId());
-			String rsId = this.receiptShipRepo.SaveOrUpdateRetrunId(rs);
-
+			rs.setCustomerId(curStorage.getCustomerId());
+			rs.setWhId(curStorage.getWarehouseId());
+			rs.setWhName(wh.getName());
+			rs.setCustomerName(curStorage.getCustomerName());
+			String rsId=this.receiptShipRepo.SaveOrUpdateRetrunId(rs);
+			
+			
 			Storage copyStorage = new Storage();
 
 			copyStorage = com.smm.ctrm.util.BeanUtils.copy(storage);
 			copyStorage.setRefId(rsId);
+			curStorage.setRefName(ReceiptShip.class.getSimpleName());
 			copyStorage.setLotId(lot.getId());
 			copyStorage.setMT("M");
 			copyStorage.setId(null);

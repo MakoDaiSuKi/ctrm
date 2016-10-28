@@ -85,8 +85,8 @@ public class PositionParams extends ApiGridParams {
 	@JsonProperty(value = "MarketIds")
 	private String MarketIds;
 
-	@JsonProperty(value = "OSC")
-	private String OSC;
+	@JsonProperty(value = "OCS")
+	private String OCS;
 
 	/**
 	 * 交易目的 {保值H, 投机S, 套利A}(Dict)
@@ -200,9 +200,6 @@ public class PositionParams extends ApiGridParams {
 		return MarketIds;
 	}
 
-	public String getOSC() {
-		return OSC;
-	}
 
 	public String getPurpose() {
 		return Purpose;
@@ -311,9 +308,6 @@ public class PositionParams extends ApiGridParams {
 		MarketIds = value;
 	}
 
-	public void setOSC(String oSC) {
-		OSC = oSC;
-	}
 
 	public void setPurpose(String value) {
 		Purpose = value;
@@ -338,4 +332,14 @@ public class PositionParams extends ApiGridParams {
 	public void setPosition4BrokerId(String position4BrokerId) {
 		Position4BrokerId = position4BrokerId;
 	}
+
+	public String getOCS() {
+		return OCS;
+	}
+
+	public void setOCS(String oCS) {
+		OCS = oCS;
+	}
+	
+	
 }

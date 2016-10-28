@@ -1,6 +1,7 @@
 package com.smm.ctrm.bo.Common;
 
 import com.smm.ctrm.domain.Basis.*;
+import com.smm.ctrm.domain.Maintain.DSME;
 import com.smm.ctrm.domain.LoginInfo;
 import com.smm.ctrm.domain.QuantityMaL;
 import com.smm.ctrm.domain.Physical.*;
@@ -280,8 +281,8 @@ public interface CommonService {
 	
 	List<CInvoice> SimplifyDataInvoicePager(List<CInvoice> invoices);
 
-	List<C2Storage> SimplifyDataStorageHolding(List<C2Storage> storages,boolean mark);
 
+	List<C2Storage> SimplifyDataStorageHolding(List<C2Storage> storages,boolean mark, List<SpotPriceEstimate> spotPriceEstimate, List<DSME> dsmeList);
 	String CreateCode_Simple(String nr);
 
 	List<CustomerBalance> txSyncCustomerBalance(String customerId, String legalId, String commodityId);

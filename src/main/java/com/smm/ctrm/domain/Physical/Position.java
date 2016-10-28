@@ -27,6 +27,7 @@ import com.smm.ctrm.domain.Basis.Customer;
 import com.smm.ctrm.domain.Basis.Legal;
 import com.smm.ctrm.domain.Basis.Market;
 import com.smm.ctrm.domain.Basis.User;
+import com.smm.ctrm.domain.Basis.Instrument;;
 
 /**
  * 头寸对象
@@ -132,63 +133,63 @@ public class Position extends HibernateEntity {
 	 */
 	@Transient
 	@JsonProperty(value = "InstrumentCode")
-	public String InstrumentCode;
+	private String InstrumentCode;
 	/**
 	 * 
 	 */
 	@Transient
 	@JsonProperty(value = "InstrumentName")
-	public String InstrumentName;
+	private String InstrumentName;
 	/**
 	 * 批次数量
 	 */
 	@Transient
 	@JsonProperty(value = "LotQuantity")
-	public BigDecimal LotQuantity;
+	private BigDecimal LotQuantity;
 	/**
 	 * 已保值数量
 	 */
 	@Transient
 	@JsonProperty(value = "LotQuantityHedged")
-	public BigDecimal LotQuantityHedged;
+	private BigDecimal LotQuantityHedged;
 	/**
 	 * 点价价格
 	 */
 	@Transient
 	@JsonProperty(value = "LotPrice")
-	public BigDecimal LotPrice;
+	private BigDecimal LotPrice;
 	/**
 	 * 点价价格
 	 */
 	@Transient
 	@JsonProperty(value = "LotHedgedRadio")
-	public String LotHedgedRadio;
+	private String LotHedgedRadio;
 	/**
 	 * 
 	 */
 	@Transient
 	@JsonProperty(value = "Lots")
-	public List<Lot> Lots;
+	private List<Lot> Lots;
 	/**
 	 * 原始基差/价差
 	 */
 	@JsonProperty(value = "OriginalBasis")
-	public BigDecimal OriginalBasis;
+	private BigDecimal OriginalBasis;
 	/**
 	 * 止损基差/价差
 	 */
 	@JsonProperty(value = "StopBasis")
-	public BigDecimal StopBasis;
+	private BigDecimal StopBasis;
 	/**
 	 * 止盈基差/价差
 	 */
 	@JsonProperty(value = "ProfitBasis")
-	public BigDecimal ProfitBasis;
+	private BigDecimal ProfitBasis;
 	/**
 	 * 套利类型
 	 */
 	@JsonProperty(value = "ArbitrageType")
-	public String ArbitrageType;
+	private String ArbitrageType;
 	/**
 	 * 
 	 */
@@ -709,6 +710,14 @@ public class Position extends HibernateEntity {
 	@Column(name = "InstrumentId")
 	@JsonProperty(value = "InstrumentId")
 	private String InstrumentId;
+	
+	@ManyToOne(fetch = FetchType.EAGER, targetEntity = Instrument.class)
+	@JoinColumn(name = "InstrumentId", insertable = false, updatable = false, foreignKey = @ForeignKey(name = "none"))
+	@Fetch(FetchMode.SELECT)
+	@NotFound(action = NotFoundAction.IGNORE)
+	@JsonProperty(value = "Instrument")
+	private Instrument Instrument;
+	
 	/**
 	 * 创建者Id
 	 */
@@ -750,13 +759,13 @@ public class Position extends HibernateEntity {
 	 * 平仓盈亏
 	 */
 	@JsonProperty(value = "AmountPnl")
-	public BigDecimal AmountPnl;
+	private BigDecimal AmountPnl;
 
 	/**
 	 * 头寸类型
 	 */
 	@JsonProperty(value = "PositionType")
-	public String PositionType;
+	private String PositionType;
 
 	public BigDecimal getAmountPnl() {
 		return AmountPnl;
@@ -1559,6 +1568,7 @@ public class Position extends HibernateEntity {
 	}
 
 	public String getFmtPromtDate() {
+		if(PromptDate == null) return null;
 		SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
 		return sdf.format(PromptDate);
 	}
@@ -1705,5 +1715,17 @@ public class Position extends HibernateEntity {
 
 	public void setPositions(List<Position> positions) {
 		Positions = positions;
+	}
+
+	public Instrument getInstrument() {
+		return Instrument;
+	}
+
+	public void setInstrument(Instrument instrument) {
+		Instrument = instrument;
+	}
+
+	public void setFmtPromtDate(String fmtPromtDate) {
+		FmtPromtDate = fmtPromtDate;
 	}
 }

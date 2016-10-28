@@ -49,9 +49,7 @@
 </body>
 <script>
 	function clearSecondLevelCache(){
-		if(confirm("会同时清空登录token！")) {
-			document.location.href = "api/clearSecondLevelCache";
-		}
+		document.location.href = "api/clearSecondLevelCache";
 	}
 	function exec(){
 		if(confirm("Notice，会更新所有数据源！")) {

@@ -43,7 +43,7 @@ public interface ContractService {
 
 	ActionResult<Boolean> verify(String contractId);
 
-	ActionResult<CpContract> fastContract(CpContract contract);
+	ActionResult<CpContract> fastContract(CpContract contract) throws Exception;
 
 	ActionResult<String> getSanKey(ContractParams param);
 

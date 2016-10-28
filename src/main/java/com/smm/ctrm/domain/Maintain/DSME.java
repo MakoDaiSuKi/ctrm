@@ -14,6 +14,8 @@ import javax.persistence.ManyToOne;
 import javax.persistence.Table;
 import javax.persistence.Transient;
 
+import org.hibernate.annotations.Cache;
+import org.hibernate.annotations.CacheConcurrencyStrategy;
 import org.hibernate.annotations.Fetch;
 import org.hibernate.annotations.FetchMode;
 import org.hibernate.annotations.NotFound;
@@ -27,7 +29,7 @@ import com.smm.ctrm.domain.Basis.Spec;
 import com.smm.ctrm.domain.Basis.User;
 @Entity
 @Table(name = "DSME", schema="Maintain")
-
+@Cache(usage=CacheConcurrencyStrategy.NONSTRICT_READ_WRITE)
 public class DSME extends HibernateEntity {
 	private static final long serialVersionUID = 1461832991337L;
 	/**

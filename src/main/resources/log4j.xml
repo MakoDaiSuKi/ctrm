@@ -21,7 +21,7 @@
 		%t    输出产生该日志事件的线程名 
 		-->
         <layout class="org.apache.log4j.PatternLayout">
-            <param name="ConversionPattern" value="[%d{yyyy-MM-dd HH:mm:ss}] %5p %l %c{2}: %m%n"/>
+            <param name="ConversionPattern" value="[%d{yyyy-MM-dd HH:mm:ss}] %5p %l : %m%n"/>
         </layout>
     </appender>
 
@@ -33,9 +33,14 @@
             <param name="ConversionPattern" value="[%d{yyyy-MM-dd HH:mm:ss}] %5p %l %c{2}: %m%n"/>
         </layout>
     </appender>
+    
+    <!-- 不显示Hibernate Warn HHH90000022 -->
+    <logger name="org.hibernate.orm.deprecation">
+        <level value="error"/>
+    </logger>
 
     <!--hibernate 语句输出-->
-
+    
     <!--显示sql语句
     <logger name="org.hibernate.SQL">
         <level value="trace"/>

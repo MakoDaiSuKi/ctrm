@@ -38,8 +38,8 @@ public class DailyReport {
 	/**
 	 * 发票列表
 	 */
-	@JsonProperty(value = "InvoioceReportList")
-	private List<InvoiceReport> InvoioceReportList = new ArrayList<>();
+	@JsonProperty(value = "InvoiceReportList")
+	private List<InvoiceReport> InvoiceReportList = new ArrayList<>();
 	
 	/**
 	 * 资金列表
@@ -87,12 +87,12 @@ public class DailyReport {
 		PositionReportList = positionReportList;
 	}
 
-	public List<InvoiceReport> getInvoioceReportList() {
-		return InvoioceReportList;
+	public List<InvoiceReport> getInvoiceReportList() {
+		return InvoiceReportList;
 	}
 
-	public void setInvoioceReportList(List<InvoiceReport> invoioceReportList) {
-		InvoioceReportList = invoioceReportList;
+	public void setInvoioceReportList(List<InvoiceReport> invoiceReportList) {
+		InvoiceReportList = invoiceReportList;
 	}
 
 }

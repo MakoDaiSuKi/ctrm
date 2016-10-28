@@ -144,13 +144,6 @@ public class ReceiptShip extends HibernateEntity {
 	private Spec Spec;
 
 	/**
-	 * 车号
-	 */
-	@Column(name = "TruckNo")
-	@JsonProperty(value = "TruckNo")
-	private String TruckNo;
-
-	/**
 	 * 重量
 	 */
 	@Column(name = "Weight")
@@ -428,14 +421,6 @@ public class ReceiptShip extends HibernateEntity {
 		Spec = spec;
 	}
 
-	public String getTruckNo() {
-		return TruckNo;
-	}
-
-	public void setTruckNo(String truckNo) {
-		TruckNo = truckNo;
-	}
-
 	public BigDecimal getWeight() {
 		return Weight;
 	}
@@ -697,7 +682,7 @@ public class ReceiptShip extends HibernateEntity {
 		return "ReceiptShip [Flag=" + Flag + ", ReceiptShipNo=" + ReceiptShipNo + ", ContractId=" + ContractId
 				+ ", LotId=" + LotId + ", Lot=" + Lot + ", CardNo=" + CardNo + ", CommodityId=" + CommodityId
 				+ ", Commodity=" + Commodity + ", BrandId=" + BrandId + ", Brand=" + Brand + ", SpecId=" + SpecId
-				+ ", Spec=" + Spec + ", TruckNo=" + TruckNo + ", Weight=" + Weight + ", DeliveryUnit=" + DeliveryUnit
+				+ ", Spec=" + Spec + ", Weight=" + Weight + ", DeliveryUnit=" + DeliveryUnit
 				+ ", DeliveryMan=" + DeliveryMan + ", DeliveryManIDCard=" + DeliveryManIDCard + ", DeliveryTruckNo="
 				+ DeliveryTruckNo + ", ReceiptShipDate=" + ReceiptShipDate + ", WhId=" + WhId + ", WhOutEntryDate="
 				+ WhOutEntryDate + ", WhName=" + WhName + ", CustomerId=" + CustomerId + ", CustomerName="

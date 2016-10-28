@@ -14,6 +14,8 @@ import javax.persistence.ManyToOne;
 import javax.persistence.Table;
 import javax.persistence.Transient;
 
+import org.hibernate.annotations.Cache;
+import org.hibernate.annotations.CacheConcurrencyStrategy;
 import org.hibernate.annotations.Fetch;
 import org.hibernate.annotations.FetchMode;
 import org.hibernate.annotations.NotFound;
@@ -23,7 +25,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.smm.ctrm.domain.HibernateEntity;
 @Entity
 @Table(name = "Instrument", schema="Basis")
-
+@Cache(usage=CacheConcurrencyStrategy.NONSTRICT_READ_WRITE)
 public class Instrument extends HibernateEntity {
 	private static final long serialVersionUID = 1461832991323L;
 	/**

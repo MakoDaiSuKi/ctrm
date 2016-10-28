@@ -49,7 +49,7 @@ public class HedgeNumberApiController {
 			return hedgeNumberService.GetNo(hnParams);
 		} catch (Exception e) {
 			logger.info(e.getMessage(), e);
-			return new ActionResult<>(Boolean.FALSE, MessageCtrm.Faile);
+			return new ActionResult<>(Boolean.FALSE, MessageCtrm.SYS_ERROR);
 		}
 	}
 	
@@ -89,7 +89,7 @@ public class HedgeNumberApiController {
 			return hedgeNumberService.GetHedgeNumberById(hNId);
 		} catch (Exception e) {
 			logger.info(e.getMessage(), e);
-			return new ActionResult<>(Boolean.FALSE, MessageCtrm.SaveFaile);
+			return new ActionResult<>(Boolean.FALSE, MessageCtrm.SYS_ERROR);
 		}
 	}
 	
@@ -106,7 +106,7 @@ public class HedgeNumberApiController {
 			return hedgeNumberService.GetHedgeNumbers(hnParams);
 		} catch (Exception e) {
 			logger.info(e.getMessage(), e);
-			return new ActionResult<>(Boolean.FALSE, MessageCtrm.SaveFaile);
+			return new ActionResult<>(Boolean.FALSE, MessageCtrm.SYS_ERROR);
 		}
 	}
 	

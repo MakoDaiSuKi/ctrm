@@ -22,6 +22,8 @@ import com.smm.ctrm.bo.Physical.ContractService;
 import com.smm.ctrm.bo.Physical.ReceiptService;
 import com.smm.ctrm.dao.HibernateRepository;
 import com.smm.ctrm.domain.LoginInfoToken;
+import com.smm.ctrm.domain.NumTypes;
+import com.smm.ctrm.domain.Basis.Brand;
 import com.smm.ctrm.domain.Basis.Commodity;
 import com.smm.ctrm.domain.Basis.Customer;
 import com.smm.ctrm.domain.Basis.Legal;
@@ -32,7 +34,9 @@ import com.smm.ctrm.domain.Physical.CpSplitPosition4Broker;
 import com.smm.ctrm.domain.Physical.Lot;
 import com.smm.ctrm.domain.Physical.Position;
 import com.smm.ctrm.domain.Physical.Position4Broker;
+import com.smm.ctrm.domain.Physical.PositionChangeMonth;
 import com.smm.ctrm.domain.Physical.PositionDelivery;
+import com.smm.ctrm.domain.Physical.PositionUnravel;
 import com.smm.ctrm.domain.Physical.ReceiptShip;
 import com.smm.ctrm.domain.Physical.Square;
 import com.smm.ctrm.domain.Physical.Square4Broker;
@@ -44,6 +48,7 @@ import com.smm.ctrm.util.DecimalUtil;
 import com.smm.ctrm.util.LoginHelper;
 import com.smm.ctrm.util.MessageCtrm;
 import com.smm.ctrm.util.RefUtil;
+import com.smm.ctrm.util.Result.LS;
 import com.smm.ctrm.util.Result.MajorType;
 import com.smm.ctrm.util.Result.PremiumType;
 import com.smm.ctrm.util.Result.SpotType;
@@ -99,6 +104,16 @@ public class Position4BrokerServiceImpl implements Position4BrokerService {
 	@Autowired
 	private HibernateRepository<Customer> customerHRepos;
 	
+	@Autowired
+	private HibernateRepository<PositionUnravel> positionUnravelHRepos;
+	
+	@Autowired
+	private HibernateRepository<PositionChangeMonth> pcmHRepos;
+	
+	@Autowired
+	private HibernateRepository<Brand> brandHRepos;
+	
+	
 
 	@Autowired
 	private PositionService positionService;
@@ -112,7 +127,7 @@ public class Position4BrokerServiceImpl implements Position4BrokerService {
 	@Autowired
 	private ContractService contractService;
 	
-	private final static String S="卖";
+	private final static String S="S";
 
 	@Override
 	public ActionResult<String> Square() {
@@ -162,9 +177,9 @@ public class Position4BrokerServiceImpl implements Position4BrokerService {
 	}
 
 	@Override
-	public ActionResult<String> Save(Position4Broker position) {
+	public ActionResult<Position4Broker> Save(Position4Broker position) {
 		if (position.getMarketId() == null) {
-			return new ActionResult<>(Boolean.FALSE, "Param is missing: MarketId");
+			return new ActionResult<>(Boolean.FALSE, "Param is missing: MarketId",null);
 		}
 
 		List<Position> positionList = positionRepository.GetQueryable(Position.class).where(
@@ -173,12 +188,12 @@ public class Position4BrokerServiceImpl implements Position4BrokerService {
 
 		for (Position p : positionList) {
 			if (StringUtils.isNotBlank(p.getId()) && StringUtils.isNotBlank(p.getLotId())) {
-				return new ActionResult<>(Boolean.FALSE, "已关联到批次，不允许修改");
+				return new ActionResult<>(Boolean.FALSE, "已关联到批次，不允许修改",null);
 			}
 		}
 
 		if (StringUtils.isNotBlank(position.getId()) && positionList.size() > 1) {
-			return new ActionResult<>(Boolean.FALSE, "已关联多个头寸，不允许修改！");
+			return new ActionResult<>(Boolean.FALSE, "已关联多个头寸，不允许修改！",null);
 		}
 		Market market = marketRepository.getOneById(position.getMarketId(), Market.class);
 		position.setCurrency(market.getCurrency());
@@ -302,10 +317,10 @@ public class Position4BrokerServiceImpl implements Position4BrokerService {
 			// return new ActionResult<>(Boolean.TRUE, MessageCtrm.SaveSuccess +
 			// "\r\n提示：" + brokerOk.getMessage());
 			// }
-			return new ActionResult<>(Boolean.TRUE, MessageCtrm.SaveSuccess);
+			return new ActionResult<>(Boolean.TRUE, MessageCtrm.SaveSuccess,position);
 		} catch (Exception e) {
 			logger.error(e);
-			return new ActionResult<>(Boolean.FALSE, e.getMessage());
+			return new ActionResult<>(Boolean.FALSE, e.getMessage(),null);
 		}
 	}
 
@@ -542,53 +557,56 @@ public class Position4BrokerServiceImpl implements Position4BrokerService {
 	@Override
 	public ActionResult<String> posDelivery(Position4BrokerParams pos4bParams) {
 		
-		
-		
 		Position4Broker pBroker=pos4bParams.getPosition4Broker();
 		
 		PositionDelivery pDelivery=pos4bParams.getPositionDelivery();
 		
 		LoginInfoToken userInfo=LoginHelper.GetLoginInfo();
 		
-		/**
-		 * 根据交割价和数量生成对应平仓头寸
-		 */
-		Position position=new Position();
-		position.setTradeDate(new Date());
-		position.setQuantity(pDelivery.getDeliveryQuantity());
-		position.setQuantityOriginal(pDelivery.getDeliveryQuantity());
-		position.setPremium(pDelivery.getPremium());
-		position.setLS(pBroker.getLS());
-		position.setHands(pBroker.getHands());
-		position.setOurPrice(pDelivery.getDeliveryPrice());
-		position.setTradePrice(pDelivery.getDeliveryPrice());
-		position.setCurrency(pBroker.getCurrency());
-		position.setOCS("S");
-		position.setTraderId(userInfo.getUserId());
-		position.setMarketId(pBroker.getMarketId());
-		position.setMarketCode(pBroker.getMarketCode());
-		position.setCommodityId(pBroker.getCommodityId());
-		position.setBrokerId(pBroker.getBrokerId());
-		position.setLegalId(pBroker.getLegalId());
-		String pId=this.positionRepository.SaveOrUpdateRetrunId(position);
+		String pId="";
 		String lotId="";
 		String headNo="";
 		//卖头寸
 		if(pBroker.getLS().equals(S)){
 			
 			List<Storage> storageList=pos4bParams.getStorageList();
+			
+			Storage storageInfo=storageList.get(0);//暂时做成同规格、同等级,后续可能要改
+			/**
+			 * 根据交割价和数量生成对应平仓头寸
+			 */
+			Position position=new Position();
+			position.setTradeDate(new Date());
+			position.setQuantity(pDelivery.getDeliveryQuantity());
+			position.setQuantityOriginal(pDelivery.getDeliveryQuantity());
+			position.setPremium(pDelivery.getPremium());
+			position.setLS(pBroker.getLS());
+			position.setHands(pBroker.getHands());
+			position.setOurPrice(pDelivery.getDeliveryPrice());
+			position.setTradePrice(pDelivery.getDeliveryPrice());
+			position.setCurrency(pBroker.getCurrency());
+			position.setOCS("S");
+			position.setTraderId(userInfo.getUserId());
+			position.setMarketId(pBroker.getMarketId());
+			position.setMarketCode(pBroker.getMarketCode());
+			position.setCommodityId(pBroker.getCommodityId());
+			position.setBrokerId(pBroker.getBrokerId());
+			position.setLegalId(pBroker.getLegalId());
+			pId=this.positionRepository.SaveOrUpdateRetrunId(position);
+			
 			/**
 			 * 以此客户、交割价、升贴水和数量生成固定价销售订单
 			 */
+			Warehouse w=this.warehouseHRepos.getOneById(storageList.get(0).getWarehouseId(), Warehouse.class);
 			Contract contract=new Contract();
 			contract.setPrice(pDelivery.getDeliveryPrice());
 			contract.setPremium(pDelivery.getPremium());
 			contract.setPremiumType(PremiumType.Fix);
 			contract.setMajorType(MajorType.Fix);
 			contract.setMajorMarketId(pBroker.getMarketId());
-			//contract.setGradeSetIds();品级ID
-			//contract.setBrandIds();
-			contract.setBrandNames(pBroker.getBrandNames());
+			contract.setGradeSetIds(storageInfo.getGradeSetId());//品级ID
+			contract.setProduct(storageInfo.getProduct());//商品名称
+			contract.setBrandNames(storageInfo.getBrandName());
 			contract.setLegalId(pBroker.getLegalId());
 			contract.setLegalCode(pBroker.getLegalCode());
 			contract.setIsPriced(true);
@@ -610,17 +628,27 @@ public class Position4BrokerServiceImpl implements Position4BrokerService {
 			contract.setStatus(1);
 			contract.setIsApproved(true);
 			contract.setTraderId(userInfo.getUserId());
-			contract.setCustomerId(pBroker.getCustomerId());
+			contract.setCustomerId(pDelivery.getCustomerId());
 			contract.setCommodityId(pBroker.getCommodityId());
 			contract.setCreatedId(userInfo.getUserId());
-			
+			contract.setQuantityOfLots(pDelivery.getDeliveryQuantity());
+			contract.setRuleWareHouseNames(w.getName());
+			contract.setRuleWareHouseIds(pDelivery.getWareHouseId());
 			String contractId=this.contractRepository.SaveOrUpdateRetrunId(contract);
 			
 			Lot lot=new Lot();
-			lot.setPrice(pDelivery.getDeliveryPrice());
+			
+			lot.setPrefixNo(prefix);
+			lot.setHeadNo(lot.getPrefixNo() + maxSerialNo);
+			lot.setFullNo(lot.getHeadNo()+"/10");
+			lot.setSerialNo(String.valueOf(maxSerialNo));
+			lot.setLotNo(10);
+			lot.setPrice(pDelivery.getDeliveryPrice().add(DecimalUtil.nullToZero(pDelivery.getPremium())));
+			lot.setFinal(lot.getPrice());
 			lot.setPremium(pDelivery.getPremium());
 			lot.setPremiumType(PremiumType.Fix);
 			lot.setMajorType(MajorType.Fix);
+			lot.setMajor(pDelivery.getDeliveryPrice());
 			lot.setMajorMarketId(pBroker.getMarketId());
 			lot.setQuantity(pDelivery.getDeliveryQuantity());
 			lot.setCurrency(pBroker.getCurrency());
@@ -638,14 +666,26 @@ public class Position4BrokerServiceImpl implements Position4BrokerService {
 			lot.setIsDelivered(true);
 			lot.setIsHedged(true);
 			lot.setIsPriced(true);
-			lot.setCustomerId(pBroker.getCustomerId());
+			lot.setCustomerId(pDelivery.getCustomerId());
 			lot.setCommodityId(pBroker.getCommodityId());
 			lot.setCreatedId(userInfo.getUserId());
 			lot.setIsSplitLot(false);
 			lot.setIsOriginalLot(false);
 			lot.setIsFunded(false);
 			lot.setIsInvoiced(false);
-			
+			lot.setQuantity(pDelivery.getDeliveryQuantity());
+			lot.setProduct(storageInfo.getProduct());
+			lot.setSpecId(storageInfo.getSpecId());
+			lot.setGradeSetId(storageInfo.getGradeSetId());
+			lot.setOriginId(storageInfo.getOriginId());
+			lot.setMoreOrLessBasis("OnPercentage");
+			lot.setMoreOrLess(new BigDecimal(2));//默认溢短装率2%
+			lot.setQuantityLess(pDelivery.getDeliveryQuantity().multiply(new BigDecimal(0.98)).setScale(4, BigDecimal.ROUND_HALF_EVEN));
+			lot.setQuantityMore(pDelivery.getDeliveryQuantity().multiply(new BigDecimal(1.02)).setScale(4, BigDecimal.ROUND_HALF_EVEN));
+			DetachedCriteria dc = DetachedCriteria.forClass(Brand.class);
+			dc.add(Restrictions.in("Id", storageInfo.getBrandId()));
+			List<Brand> brands = this.brandHRepos.GetQueryable(Brand.class).where(dc).toCacheList();
+			lot.setBrands(brands);
 			lotId=this.lotRepository.SaveOrUpdateRetrunId(lot);
 			
 			/**
@@ -656,65 +696,65 @@ public class Position4BrokerServiceImpl implements Position4BrokerService {
 			p.setContractId(contractId);
 			this.positionRepository.SaveOrUpdate(p);
 			Customer customer=this.customerHRepos.getOneById(pDelivery.getCustomerId(), Customer.class);
+			
+			//本次要交割数据
+			BigDecimal thisDeliveryQuantity=pDelivery.getDeliveryQuantity();
+			
+			//本次仓单总重量
+			
+			
 			for (Storage sl : storageList) {
-				ReceiptShip rs=new ReceiptShip();
-				rs.setCommodityId(pBroker.getCommodityId());
-				rs.setContractId(contractId);
-				rs.setCustomerId(pDelivery.getCustomerId());
-				rs.setCustomerName(customer.getName());
-				rs.setFlag(SpotType.Sell);
-				rs.setIsApproved(true);
-				rs.setLotId(lotId);
-				rs.setReceiptShipDate(new Date());
-				String no = this.receiptService.getNoRepeatReceiptNo(rs.getFlag());
-				rs.setReceiptShipNo(no);
-				rs.setSpecId(sl.getSpecId());
-				rs.setWeight(pDelivery.getDeliveryQuantity());
-				rs.setWhId(sl.getWarehouseId());
-				Warehouse w=this.warehouseHRepos.getOneById(sl.getWarehouseId(), Warehouse.class);
-				rs.setWhName(w.getName());
-				rs.setWhOutEntryDate(new Date());
-				rs.setCreatedId(userInfo.getUserId());
-				String rsId=this.receiptShipHRepos.SaveOrUpdateRetrunId(rs);
-				/**
-				 * 同时发货
-				 */
-				Storage storage=new Storage();
-				storage=com.smm.ctrm.util.BeanUtils.copy(sl);
-				storage.setRefId(rsId);
-				storage.setCreatedId(userInfo.getUserId());
-				storage.setLotId(lotId);
-				storage.setIsIn(true);
-				storage.setTradeDate(new Date());
-				storage.setMT("M");
-				storage.setTransitStatus("NA");
-				storage.setIsInvoiced(true);
-				storage.setContractId(contractId);
-				storage.setQuantityInvoiced(pDelivery.getDeliveryQuantity());
-				storage.setAmount(pDelivery.getDeliveryQuantity().multiply(pDelivery.getDeliveryPrice()));
-				storage.setIsBorrow(false);
-				storage.setIsOut(true);
-				storage.setCounterpartyId3(sl.getId());	
-				String sId = this.storageRepository.SaveOrUpdateRetrunId(storage);
-				sl.setCounterpartyId2(sId);
-				sl.setIsOut(true);
-				this.storageRepository.SaveOrUpdateRetrunId(sl);
-				
+				if(thisDeliveryQuantity.compareTo(BigDecimal.ZERO)==0){
+					break;
+				}
+				if(thisDeliveryQuantity.compareTo(sl.getQuantity())>=0){
+					saveStorageAndReceiptShip(pBroker,pDelivery,sl,customer,contractId,lotId,userInfo,w);
+					thisDeliveryQuantity=thisDeliveryQuantity.subtract(sl.getQuantity());
+				}else{
+					/**
+					 * 拆分货物
+					 */
+					sl.setQuantity(sl.getQuantity().subtract(thisDeliveryQuantity));
+					this.storageRepository.SaveOrUpdate(sl);
+					Integer iNo = commonService.GetSequenceIndex(NumTypes.Split_Storage + sl.getProjectName());
+					String splitStr = "(" + iNo.toString() + ")";
+
+					// #region 构建新的拆分出来的库存记录，并保存
+					Storage theSplit = new Storage();
+
+					theSplit = com.smm.ctrm.util.BeanUtils.copy(sl);
+					theSplit.setId(null);
+					theSplit.setIsSplitted(true);
+					theSplit.setSourceId(sl.getSourceId() == null ? sl.getId() : sl.getSourceId());
+					theSplit.setIsMerged(false);
+					theSplit.setMergeId(sl.getMergeId());
+					theSplit.setBundles(0); // 非常重要
+					theSplit.setQuantity(thisDeliveryQuantity);
+					theSplit.setProjectName("* " + sl.getProjectName() + splitStr);
+					theSplit.setIsInvoiced(false);
+
+					String splitId = this.storageRepository.SaveOrUpdateRetrunId(theSplit);
+					theSplit=this.storageRepository.getOneById(splitId, Storage.class);// 原记录
+					saveStorageAndReceiptShip(pBroker,pDelivery,theSplit,customer,contractId,lotId,userInfo,w);
+				}
 			}
 			
 		}else{//买头寸
 			/**
 			 * 以此客户、交割价、升贴水和数量生成固定价采购订单
 			 */
+			Warehouse w=this.warehouseHRepos.getOneById(pDelivery.getWareHouseId(), Warehouse.class);
+			
 			Contract contract=new Contract();
 			contract.setPrice(pDelivery.getDeliveryPrice());
 			contract.setPremium(pDelivery.getPremium());
 			contract.setPremiumType(PremiumType.Fix);
 			contract.setMajorType(MajorType.Fix);
 			contract.setMajorMarketId(pBroker.getMarketId());
-			//contract.setGradeSetIds();品级ID
-			//contract.setBrandIds();
-			contract.setBrandNames(pBroker.getBrandNames());
+			contract.setBrandIds(pDelivery.getBrandIds());
+			contract.setGradeSetIds(pDelivery.getGradeSetIds());//品级ID
+			contract.setProduct(pDelivery.getProduct());//商品名称
+			contract.setBrandNames(pDelivery.getBrandName());
 			contract.setLegalId(pBroker.getLegalId());
 			contract.setLegalCode(pBroker.getLegalCode());
 			contract.setIsPriced(true);
@@ -736,17 +776,27 @@ public class Position4BrokerServiceImpl implements Position4BrokerService {
 			contract.setStatus(1);
 			contract.setIsApproved(true);
 			contract.setTraderId(userInfo.getUserId());
-			contract.setCustomerId(pBroker.getCustomerId());
+			contract.setCustomerId(pDelivery.getCustomerId());
 			contract.setCommodityId(pBroker.getCommodityId());
 			contract.setCreatedId(userInfo.getUserId());
-			
+			contract.setQuantityOfLots(pDelivery.getDeliveryQuantity());
+			//contract.setTransactionType(transactionType);//交易类型
+			contract.setRuleWareHouseNames(w.getName());
+			contract.setRuleWareHouseIds(pDelivery.getWareHouseId());
 			String contractId=this.contractRepository.SaveOrUpdateRetrunId(contract);
 			
 			Lot lot=new Lot();
-			lot.setPrice(pDelivery.getDeliveryPrice());
+			lot.setPrefixNo(prefix);
+			lot.setHeadNo(contract.getHeadNo());
+			lot.setFullNo(contract.getHeadNo()+"/10");
+			lot.setSerialNo(String.valueOf(maxSerialNo));
+			lot.setLotNo(10);
+			lot.setPrice(pDelivery.getDeliveryPrice().add(DecimalUtil.nullToZero(pDelivery.getPremium())));
+			lot.setFinal(lot.getPrice());
 			lot.setPremium(pDelivery.getPremium());
 			lot.setPremiumType(PremiumType.Fix);
 			lot.setMajorType(MajorType.Fix);
+			lot.setMajor(pDelivery.getDeliveryPrice());
 			lot.setMajorMarketId(pBroker.getMarketId());
 			lot.setQuantity(pDelivery.getDeliveryQuantity());
 			lot.setCurrency(pBroker.getCurrency());
@@ -758,13 +808,13 @@ public class Position4BrokerServiceImpl implements Position4BrokerService {
 			lot.setLegalCode(pBroker.getLegalCode());
 			lot.setIsPriced(true);
 			lot.setQuantityDelivered(pDelivery.getDeliveryQuantity());
-			lot.setQuantityPriced(pDelivery.getDeliveryQuantity());
-			lot.setQuantityHedged(pDelivery.getDeliveryQuantity());
-			lot.setHedgedPrice(pDelivery.getDeliveryPrice());
+			lot.setQuantityPriced(pDelivery.getDeliveryPrice());
+			//lot.setQuantityHedged(pDelivery.getDeliveryQuantity());
+			//lot.setHedgedPrice(pDelivery.getDeliveryPrice());
 			lot.setIsDelivered(true);
-			lot.setIsHedged(true);
+			//lot.setIsHedged(true);
 			lot.setIsPriced(true);
-			lot.setCustomerId(pBroker.getCustomerId());
+			lot.setCustomerId(pDelivery.getCustomerId());
 			lot.setCommodityId(pBroker.getCommodityId());
 			lot.setCreatedId(userInfo.getUserId());
 			lot.setContractId(contractId);
@@ -772,6 +822,22 @@ public class Position4BrokerServiceImpl implements Position4BrokerService {
 			lot.setIsOriginalLot(false);
 			lot.setIsFunded(false);
 			lot.setIsInvoiced(false);
+			lot.setProduct(pDelivery.getProduct());
+			lot.setSpecId(pDelivery.getSpecId());
+			lot.setGradeSetId(pDelivery.getGradeSetIds());
+			lot.setOriginId(pDelivery.getOriginId());
+			lot.setBrandIds(pDelivery.getBrandIds());
+			lot.setQuantity(pDelivery.getDeliveryQuantity());
+			lot.setBrandNames(pDelivery.getBrandName());
+			lot.setMoreOrLessBasis("OnPercentage");
+			lot.setMoreOrLess(new BigDecimal(2));//默认溢短装率2%
+			lot.setQuantityLess(pDelivery.getDeliveryQuantity().multiply(new BigDecimal(0.98)).setScale(4, BigDecimal.ROUND_HALF_EVEN));
+			lot.setQuantityMore(pDelivery.getDeliveryQuantity().multiply(new BigDecimal(1.02)).setScale(4, BigDecimal.ROUND_HALF_EVEN));
+			
+			DetachedCriteria dc = DetachedCriteria.forClass(Brand.class);
+			dc.add(Restrictions.in("Id", pDelivery.getBrandIds()));
+			List<Brand> brands = this.brandHRepos.GetQueryable(Brand.class).where(dc).toCacheList();
+			lot.setBrands(brands);
 			lotId=this.lotRepository.SaveOrUpdateRetrunId(lot);
 			
 			/**
@@ -783,16 +849,16 @@ public class Position4BrokerServiceImpl implements Position4BrokerService {
 			rs.setCustomerId(pDelivery.getCustomerId());
 			Customer customer=this.customerHRepos.getOneById(pDelivery.getCustomerId(), Customer.class);
 			rs.setCustomerName(customer.getName());
-			rs.setFlag(SpotType.Sell);
+			rs.setFlag(SpotType.Purchase);
 			rs.setIsApproved(true);
 			rs.setLotId(lotId);
 			rs.setReceiptShipDate(new Date());
 			String no = this.receiptService.getNoRepeatReceiptNo(rs.getFlag());
 			rs.setReceiptShipNo(no);
-			//rs.setSpecId(curLot.getSpecId());
+			rs.setSpecId(lot.getSpecId());
 			rs.setWeight(pDelivery.getDeliveryQuantity());
 			rs.setWhId(pDelivery.getWareHouseId());
-			Warehouse w=this.warehouseHRepos.getOneById(pDelivery.getWareHouseId(), Warehouse.class);
+			
 			rs.setWhName(w.getName());
 			rs.setWhOutEntryDate(new Date());
 			rs.setCreatedId(userInfo.getUserId());
@@ -805,14 +871,30 @@ public class Position4BrokerServiceImpl implements Position4BrokerService {
 			storage.setLotId(lotId);
 			storage.setIsIn(true);
 			storage.setTradeDate(new Date());
-			storage.setMT("M");
+			storage.setMT("T");
 			storage.setTransitStatus("NA");
-			storage.setIsInvoiced(true);
 			storage.setContractId(contractId);
 			storage.setQuantityInvoiced(pDelivery.getDeliveryQuantity());
 			storage.setAmount(pDelivery.getDeliveryQuantity().multiply(pDelivery.getDeliveryPrice()));
 			storage.setIsBorrow(false);
 			storage.setIsOut(true);
+			// 项目名称
+			storage.setProjectName(pDelivery.getProjectName());
+			storage.setMajor(pDelivery.getDeliveryPrice());
+			storage.setPremium(pDelivery.getPremium());
+			storage.setQuantity(pDelivery.getDeliveryQuantity());
+			storage.setGross(pDelivery.getDeliveryQuantity());
+			storage.setGrossAtFactory(pDelivery.getDeliveryQuantity());
+			storage.setQuantityAtWarehouse(pDelivery.getDeliveryQuantity());
+			storage.setCreatedId(userInfo.getUserId());
+			storage.setWarehouseId(pDelivery.getWareHouseId());
+			storage.setWarehouseName(w.getName());
+			storage.setCurrency("CNY");
+			storage.setBrandName(pDelivery.getBrandName());
+			storage.setGradeSetId(pDelivery.getGradeSetIds());
+			storage.setCommodityId(pBroker.getCommodityId());
+			storage.setCustomerId(pDelivery.getCustomerId());
+			storage.setProduct(pDelivery.getProduct());
 			String sId = this.storageRepository.SaveOrUpdateRetrunId(storage);
 			
 		}
@@ -848,7 +930,9 @@ public class Position4BrokerServiceImpl implements Position4BrokerService {
 		
 		pDelivery.setPosition4BrokerNo(pBroker.getOurRef());
 		pDelivery.setPosition4BrokerId(pBroker.getId());
-		pDelivery.setPositionId(pId);
+		if(org.apache.commons.lang3.StringUtils.isNotBlank(pId)){
+			pDelivery.setPositionId(pId);
+		}
 		pDelivery.setLotId(lotId);
 		pDelivery.setLotNo(headNo+"/10");
 		pDelivery.setCreatedId(userInfo.getUserId());
@@ -856,5 +940,277 @@ public class Position4BrokerServiceImpl implements Position4BrokerService {
 		this.posDeliveryRepository.SaveOrUpdate(pDelivery);
 		
 		return new ActionResult<>(true,"头寸交割成功.");
+	}
+
+	@Override
+	@Transactional
+	public ActionResult<String> Unravel(Position4BrokerParams pos4bParams) {
+		
+		Position4Broker position4Broker=pos4bParams.getPosition4Broker();
+		
+		List<Position4Broker> pbList=pos4bParams.getPBList();
+		
+		LoginInfoToken userInfo=LoginHelper.GetLoginInfo();
+		
+		//剩平仓余数量
+		BigDecimal laveQuantity=position4Broker.getQuantity().abs().subtract(DecimalUtil.nullToZero(position4Broker.getDeliveryQuantity()).abs()).subtract(DecimalUtil.nullToZero(position4Broker.getUnravelQuantity()).abs());
+		BigDecimal updateQuantity=laveQuantity;
+		//本次可以平仓数量
+		BigDecimal totalQuantity=BigDecimal.ZERO;
+		for (Position4Broker pb : pbList) {
+			totalQuantity=totalQuantity.add(pb.getQuantity().abs().subtract(DecimalUtil.nullToZero(pb.getDeliveryQuantity()).abs()).subtract(DecimalUtil.nullToZero(pb.getUnravelQuantity())).abs());
+		}
+		boolean flag=true;
+		if(laveQuantity.abs().compareTo(totalQuantity.abs())<0){
+			flag=false;
+		}
+		/**
+		 * 记录平仓关系
+		 */
+		boolean b=position4Broker.getLS().equals(LS.SHORT);
+		for (Position4Broker pb : pbList) {
+			boolean bFlage=pb.getLS().equals(LS.SHORT);
+			PositionUnravel pu=new PositionUnravel();
+			pu.setSourcePtId(position4Broker.getId());
+			pu.setUnravelDate(new Date());
+			pu.setSourcePtId(position4Broker.getId());
+			pu.setUnravelPtId(pb.getId());
+			pu.setSourcePtPrice(position4Broker.getOurPrice());
+			pu.setUnravelPtPrice(pb.getOurPrice());
+			pu.setCreatedId(userInfo.getUserId());
+			BigDecimal quantity=pb.getQuantity().abs().subtract(DecimalUtil.nullToZero(pb.getDeliveryQuantity()).abs()).subtract(DecimalUtil.nullToZero(pb.getUnravelQuantity()).abs());//剩余数量
+			//平仓数量
+			if(flag){
+				pu.setQuantity(quantity);
+				pb.setUnravelQuantity(bFlage?DecimalUtil.nullToZero(pb.getUnravelQuantity()).abs().add(quantity).multiply(new BigDecimal(-1)):DecimalUtil.nullToZero(pb.getUnravelQuantity()).abs().add(quantity));
+				//盈亏计算
+				pu.setProfitAndLoss(quantity.abs().multiply(position4Broker.getLS().equals(LS.SHORT)
+						? position4Broker.getOurPrice().subtract(pb.getOurPrice())
+						: pb.getOurPrice().subtract(position4Broker.getOurPrice())));	
+				pb.setLastUnravelDate(new Date());
+				this.position4BrokerRepo.SaveOrUpdate(pb);
+				this.positionUnravelHRepos.SaveOrUpdate(pu);
+			}else{
+				if(laveQuantity.abs().compareTo(quantity.abs())>0){
+					pu.setQuantity(quantity);
+					laveQuantity=laveQuantity.subtract(quantity);
+					pb.setUnravelQuantity(bFlage?DecimalUtil.nullToZero(pb.getUnravelQuantity()).abs().add(quantity).multiply(new BigDecimal(-1)):DecimalUtil.nullToZero(pb.getUnravelQuantity()).abs().add(quantity));
+					//盈亏计算
+					pu.setProfitAndLoss(quantity.multiply(position4Broker.getLS().equals(LS.SHORT)
+							? position4Broker.getOurPrice().subtract(pb.getOurPrice())
+							: pb.getOurPrice().subtract(position4Broker.getOurPrice())));
+					pb.setLastUnravelDate(new Date());
+					this.position4BrokerRepo.SaveOrUpdate(pb);
+					this.positionUnravelHRepos.SaveOrUpdate(pu);
+				}else{
+					pu.setQuantity(bFlage?laveQuantity.multiply(new BigDecimal(-1)):laveQuantity);
+					//盈亏计算
+					pu.setProfitAndLoss(laveQuantity.abs().multiply(position4Broker.getLS().equals(LS.SHORT)
+							? position4Broker.getOurPrice().subtract(pb.getOurPrice())
+							: pb.getOurPrice().subtract(position4Broker.getOurPrice())));
+					pb.setUnravelQuantity(bFlage?DecimalUtil.nullToZero(pb.getUnravelQuantity()).abs().add(laveQuantity.abs()).multiply(new BigDecimal(-1)):DecimalUtil.nullToZero(pb.getUnravelQuantity()).abs().add(laveQuantity.abs()));
+					pb.setLastUnravelDate(new Date());
+					this.position4BrokerRepo.SaveOrUpdate(pb);
+					this.positionUnravelHRepos.SaveOrUpdate(pu);
+					break;
+				}
+			}
+		}
+		/**
+		 * 更新原头寸已平仓数量、平仓均价
+		 */
+		DetachedCriteria dc=DetachedCriteria.forClass(PositionUnravel.class);
+		dc.add(Restrictions.eq("SourcePtId", position4Broker.getId()));
+		List<PositionUnravel> puList=this.positionUnravelHRepos.GetQueryable(PositionUnravel.class).where(dc).toList();
+		BigDecimal total=BigDecimal.ZERO;
+		for (PositionUnravel p : puList) {
+			total=total.add(p.getUnravelPtPrice());
+		}
+		if(puList!=null&&puList.size()>0){
+			position4Broker.setUnravelPrice(total.divide(new BigDecimal(puList.size()),4,BigDecimal.ROUND_HALF_UP));
+		}
+		
+		position4Broker.setLastUnravelDate(new Date());
+		BigDecimal u=flag?DecimalUtil.nullToZero(position4Broker.getUnravelQuantity()).abs().add(totalQuantity.abs()):DecimalUtil.nullToZero(position4Broker.getUnravelQuantity()).abs().add(updateQuantity.abs());
+		position4Broker.setUnravelQuantity(b?u.multiply(new BigDecimal(-1)):u);
+		this.position4BrokerRepo.SaveOrUpdate(position4Broker);
+		
+		return new ActionResult<>(true, "头寸平仓成功.");
+	}
+
+	@Override
+	@Transactional(readOnly=false)
+	public ActionResult<String> ChangeMonth(Position4BrokerParams pos4bParams) throws Exception {
+		
+		Position4Broker position4Broker=pos4bParams.getPosition4Broker();
+		
+		List<Position4Broker> pbList=pos4bParams.getPBList();//平仓头寸
+		
+		List<Position4Broker> changeMonthList=pos4bParams.getChangeMonthList();//换月头寸
+		
+		LoginInfoToken userInfo=LoginHelper.GetLoginInfo();
+		
+		
+		/**
+		 * 是否平仓
+		 */
+		if(pbList!=null&&pbList.size()>0){
+			ActionResult<String> result=Unravel(pos4bParams);
+			if(!result.isSuccess()) throw new Exception("头寸平仓失败");
+		}
+		
+		position4Broker=this.position4BrokerRepo.getOneById(position4Broker.getId(), Position4Broker.class);
+		/**
+		 * 当前头寸剩余换月数量
+		 */
+		
+		BigDecimal cmQuantity=DecimalUtil.nullToZero(position4Broker.getUnravelQuantity()).abs().subtract(DecimalUtil.nullToZero(position4Broker.getChangeMonthQuantity()).abs());
+		BigDecimal updateCMQuantity=cmQuantity;
+		/**
+		 * 本次选择换月数量
+		 */
+		BigDecimal thisCmQuantity=BigDecimal.ZERO;
+		for (Position4Broker p : changeMonthList) {
+			thisCmQuantity=thisCmQuantity.add(p.getQuantity().subtract(DecimalUtil.nullToZero(p.getChangeMonthQuantity()).abs()));
+		}
+		boolean flag=true;
+		if(cmQuantity.abs().compareTo(thisCmQuantity.abs())<0){
+			flag=false;
+		}
+		boolean b=position4Broker.getLS().equals(LS.SHORT);
+		for (Position4Broker pb : changeMonthList) {
+			boolean bFlage=pb.getLS().equals(LS.SHORT);
+			PositionChangeMonth pcm=new PositionChangeMonth();
+			pcm.setSourcePtId(position4Broker.getId());
+			pcm.setChangeMonthPtId(pb.getId());
+			pcm.setSourcePtPrice(position4Broker.getOurPrice());
+			pcm.setChangeMonthPtPrice(pb.getOurPrice());
+			pcm.setCreatedId(userInfo.getUserId());
+			//
+			BigDecimal quantity=pb.getQuantity().subtract(DecimalUtil.nullToZero(pb.getUnravelQuantity()).abs()).subtract(DecimalUtil.nullToZero(pb.getDeliveryQuantity()).abs());
+			if(flag){
+				pcm.setQuantity(bFlage?quantity.multiply(new BigDecimal(-1)):quantity);
+				//换月盈亏
+				pcm.setProfitAndLoss(quantity.multiply(position4Broker.getLS().equals(LS.SHORT)
+						? position4Broker.getOurPrice().subtract(DecimalUtil.nullToZero(position4Broker.getChangeMonthPrice()))
+						: DecimalUtil.nullToZero(position4Broker.getChangeMonthPrice()).subtract(position4Broker.getOurPrice())));	
+				pb.setChangeMonthQuantity(bFlage?DecimalUtil.nullToZero(pb.getChangeMonthQuantity()).add(quantity).multiply(new BigDecimal(-1)):DecimalUtil.nullToZero(pb.getChangeMonthQuantity()).add(quantity));
+				pb.setLastChangeMonthDate(new Date());
+				this.position4BrokerRepo.SaveOrUpdate(pb);
+				this.pcmHRepos.SaveOrUpdate(pcm);
+			}else{
+				if(cmQuantity.compareTo(quantity)>0){
+					
+					pcm.setQuantity(bFlage?quantity.multiply(new BigDecimal(-1)):quantity);
+					
+					thisCmQuantity=thisCmQuantity.abs().subtract(quantity.abs());
+					//换月盈亏
+					pcm.setProfitAndLoss(quantity.multiply(position4Broker.getLS().equals(LS.SHORT)
+							? position4Broker.getOurPrice().subtract(DecimalUtil.nullToZero(position4Broker.getChangeMonthPrice()))
+							: DecimalUtil.nullToZero(position4Broker.getChangeMonthPrice()).subtract(position4Broker.getOurPrice())));
+					pb.setChangeMonthQuantity(bFlage?DecimalUtil.nullToZero(pb.getChangeMonthQuantity()).add(quantity).multiply(new BigDecimal(-1)):DecimalUtil.nullToZero(pb.getChangeMonthQuantity()).add(quantity));
+					pb.setLastChangeMonthDate(new Date());
+					this.position4BrokerRepo.SaveOrUpdate(pb);
+					this.pcmHRepos.SaveOrUpdate(pcm);
+				}else{
+					
+					pcm.setQuantity(bFlage?cmQuantity.multiply(new BigDecimal(-1)):cmQuantity);
+					//换月盈亏
+					pcm.setProfitAndLoss(quantity.abs().multiply(position4Broker.getLS().equals(LS.SHORT)
+							? position4Broker.getOurPrice().subtract(DecimalUtil.nullToZero(position4Broker.getChangeMonthPrice()))
+							: DecimalUtil.nullToZero(position4Broker.getChangeMonthPrice()).subtract(position4Broker.getOurPrice())));
+					
+					
+					pb.setChangeMonthQuantity(bFlage?DecimalUtil.nullToZero(pb.getChangeMonthQuantity()).abs().add(cmQuantity.abs()).multiply(new BigDecimal(-1)):DecimalUtil.nullToZero(pb.getChangeMonthQuantity()).add(cmQuantity));
+					pb.setLastChangeMonthDate(new Date());
+					this.position4BrokerRepo.SaveOrUpdate(pb);
+					this.pcmHRepos.SaveOrUpdate(pcm);
+					break;
+				}
+			}
+			
+		}
+		
+		/**
+		 * 更新原始头寸换月数量、换月均价
+		 */
+		DetachedCriteria dc=DetachedCriteria.forClass(PositionChangeMonth.class);
+		dc.add(Restrictions.eq("SourcePtId", position4Broker.getId()));
+		List<PositionChangeMonth> pcmList=this.pcmHRepos.GetQueryable(PositionChangeMonth.class).where(dc).toList();
+		BigDecimal total=BigDecimal.ZERO;
+		for (PositionChangeMonth p : pcmList) {
+			total=total.add(p.getChangeMonthPtPrice());
+		}
+		if(pcmList!=null&&pcmList.size()>0){
+			position4Broker.setChangeMonthPrice(total.divide(new BigDecimal(pcmList.size()),4,BigDecimal.ROUND_HALF_UP));
+		}
+		position4Broker.setLastChangeMonthDate(new Date());
+		BigDecimal u=flag?DecimalUtil.nullToZero(position4Broker.getChangeMonthQuantity()).abs().add(thisCmQuantity.abs()):DecimalUtil.nullToZero(position4Broker.getChangeMonthQuantity()).abs().add(updateCMQuantity.abs());
+		position4Broker.setChangeMonthQuantity(b?u.multiply(new BigDecimal(-1)):u);
+		
+		this.position4BrokerRepo.SaveOrUpdate(position4Broker);
+		
+		return new ActionResult<>(true, "头寸换月成功");
+	}
+	
+	@SuppressWarnings("unused")
+	private void saveStorageAndReceiptShip(Position4Broker pBroker,
+			PositionDelivery pDelivery,Storage sl,
+			Customer customer,String contractId,
+			String lotId,LoginInfoToken userInfo,
+			Warehouse w){
+		ReceiptShip rs=new ReceiptShip();
+		rs.setCommodityId(pBroker.getCommodityId());
+		rs.setContractId(contractId);
+		rs.setCustomerId(pDelivery.getCustomerId());
+		rs.setCustomerName(customer.getName());
+		rs.setFlag(SpotType.Sell);
+		rs.setIsApproved(true);
+		rs.setLotId(lotId);
+		rs.setReceiptShipDate(new Date());
+		String no = this.receiptService.getNoRepeatReceiptNo(rs.getFlag());
+		rs.setReceiptShipNo(no);
+		rs.setSpecId(sl.getSpecId());
+		rs.setWeight(pDelivery.getDeliveryQuantity());
+		rs.setWhId(sl.getWarehouseId());
+		rs.setWhName(w.getName());
+		rs.setWhOutEntryDate(new Date());
+		rs.setCreatedId(userInfo.getUserId());
+		String rsId=this.receiptShipHRepos.SaveOrUpdateRetrunId(rs);
+		/**
+		 * 同时发货
+		 */
+		Storage storage=new Storage();
+		storage=com.smm.ctrm.util.BeanUtils.copy(sl);
+		storage.setId(null);
+		storage.setRefId(rsId);
+		storage.setCreatedId(userInfo.getUserId());
+		storage.setLotId(lotId);
+		storage.setIsIn(true);
+		storage.setTradeDate(new Date());
+		storage.setMT("M");
+		storage.setTransitStatus("NA");
+		storage.setContractId(contractId);
+		storage.setQuantityInvoiced(pDelivery.getDeliveryQuantity());
+		storage.setAmount(pDelivery.getDeliveryQuantity().multiply(pDelivery.getDeliveryPrice()));
+		storage.setIsBorrow(false);
+		storage.setIsOut(true);
+		storage.setCounterpartyId3(sl.getId());
+		storage.setAmount(pDelivery.getDeliveryQuantity().multiply(pDelivery.getDeliveryPrice()));
+		storage.setIsBorrow(false);
+		storage.setIsOut(true);
+		// 项目名称
+		storage.setProjectName(sl.getProjectName());
+		storage.setMajor(pDelivery.getDeliveryPrice());
+		storage.setPremium(pDelivery.getPremium());
+		storage.setQuantity(sl.getQuantity());
+		storage.setGross(pDelivery.getDeliveryQuantity());
+		storage.setGrossAtFactory(pDelivery.getDeliveryQuantity());
+		storage.setQuantityAtWarehouse(pDelivery.getDeliveryQuantity());
+		
+		String sId = this.storageRepository.SaveOrUpdateRetrunId(storage);
+		sl.setCounterpartyId2(sId);
+		sl.setIsOut(true);
+		this.storageRepository.SaveOrUpdateRetrunId(sl);
 	}
 }

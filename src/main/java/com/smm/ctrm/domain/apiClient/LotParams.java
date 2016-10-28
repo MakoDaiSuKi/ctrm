@@ -103,6 +103,9 @@ public class LotParams extends ApiGridParams {
 	@JsonProperty(value = "PricingType")
 	private String PricingType; // 点价类型
 	
+	@JsonProperty(value = "HadHedged")
+	private Boolean HadHedged; // 是否已经开始保值
+	
 	/**
 	 * 是否套利
 	 */
@@ -146,7 +149,7 @@ public class LotParams extends ApiGridParams {
 	}
 
 	public Boolean getIsHedged() {
-		return IsHedged != null ? IsHedged : false;
+		return IsHedged;
 	}
 
 	public Boolean getIsInvoiced() {
@@ -363,5 +366,13 @@ public class LotParams extends ApiGridParams {
 
 	public void setIsArbitrage(Boolean isArbitrage) {
 		IsArbitrage = isArbitrage;
+	}
+
+	public Boolean getHadHedged() {
+		return HadHedged;
+	}
+
+	public void setHadHedged(Boolean hadHedged) {
+		HadHedged = hadHedged;
 	}
 }

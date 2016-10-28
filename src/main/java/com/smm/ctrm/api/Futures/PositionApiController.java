@@ -25,15 +25,18 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseBody;
 
 import com.smm.ctrm.bo.Common.CommonService;
+import com.smm.ctrm.bo.Futures.Position4BrokerService;
 import com.smm.ctrm.bo.Futures.PositionService;
 import com.smm.ctrm.bo.Physical.LotService;
 import com.smm.ctrm.domain.Maintain.Reuter;
 import com.smm.ctrm.domain.Physical.CpSplitPosition;
 import com.smm.ctrm.domain.Physical.Position;
+import com.smm.ctrm.domain.Physical.Position4Broker;
 import com.smm.ctrm.domain.apiClient.M2MParams;
 import com.smm.ctrm.domain.apiClient.PositionParams;
 import com.smm.ctrm.dto.res.ActionResult;
 import com.smm.ctrm.dto.res.ActionStatus;
+import com.smm.ctrm.util.DecimalUtil;
 import com.smm.ctrm.util.LoginHelper;
 import com.smm.ctrm.util.MessageCtrm;
 import com.smm.ctrm.util.RefUtil;
@@ -45,6 +48,9 @@ public class PositionApiController {
 	private static Logger logger = Logger.getLogger(PositionApiController.class);
 	@Resource
 	private PositionService positionService;
+	
+	@Resource
+	private Position4BrokerService position4BrokerService;
 
 	@Resource
 	private LotService lotService;
@@ -99,6 +105,11 @@ public class PositionApiController {
 				disjunction.add(e);
 				disjunction.add(f);
 				criteria.add(disjunction);
+			}
+			
+			// 套利类型
+			if(StringUtils.isNotBlank(param.getPurpose())) {
+				criteria.add(Restrictions.eq("Purpose", param.getPurpose()));
 			}
 
 			// 买入方向
@@ -341,9 +352,9 @@ public class PositionApiController {
 				}
 			}
 			
-			if(param.getOSC() != null)
+			if(param.getOCS() != null)
 			{
-				criteria.add(Restrictions.eq("OSC", param.getOSC()));
+				criteria.add(Restrictions.eq("OSC", param.getOCS()));
 			}
 			
 			if(param.getBrokerId() != null)
@@ -502,9 +513,9 @@ public class PositionApiController {
 						BigDecimal lastPrice = sfePrice.get(m2m.getCommodityCode());
 						if (sfePrice.containsKey(m2m.getCommodityCode())) {
 							m2m.setM2MPrice(lastPrice);
-							m2m.setM2MAmount(m2m.getQuantityUnSquared().multiply(lastPrice)); // 未平数量
+							m2m.setM2MAmount(DecimalUtil.nullToZero(m2m.getQuantityUnSquared()).multiply(lastPrice)); // 未平数量
 							m2m.setPositionProfit(
-									lastPrice.subtract(m2m.getOurPrice()).multiply(m2m.getQuantityUnSquared()));// 实时价格-头寸价格=实时利润
+									lastPrice.subtract(m2m.getOurPrice()).multiply(DecimalUtil.nullToZero(m2m.getQuantityUnSquared())));// 实时价格-头寸价格=实时利润
 						} else {
 							ActionResult<List<Position>> tempVar = new ActionResult<List<Position>>();
 							tempVar.setSuccess(true);
@@ -680,14 +691,22 @@ public class PositionApiController {
 	
 	@RequestMapping("SaveReturnPosition")
 	@ResponseBody
-	public ActionResult<Position> SaveReturnPosition(HttpServletRequest request, @RequestBody Position position) {
+	public ActionResult<Position4Broker> SaveReturnPosition(HttpServletRequest request, @RequestBody Position position) {
 		try {
 			if (position.getId() != null) {
 				position.setUpdatedId(LoginHelper.GetLoginInfo(request).getUserId());
 			} else {
 				position.setCreatedId(LoginHelper.GetLoginInfo(request).getUserId());
 			}
-			return positionService.Save(position);
+			ActionResult<Position> result = positionService.Save(position);
+			if(result.isSuccess())
+			{
+				String brokerId = result.getData().getBrokerId();
+				return position4BrokerService.GetById(brokerId);
+			}
+			
+		    return new ActionResult<>(result.isSuccess(), result.getMessage());
+			
 		} catch (Exception ex) {
 			logger.error(ex.getMessage(), ex);
 			return new ActionResult<>(Boolean.FALSE, ex.getMessage(),null);
