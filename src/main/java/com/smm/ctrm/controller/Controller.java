@@ -51,7 +51,8 @@ public class Controller {
 	}
 
 	private String getOnlineUsersStr() {
-		Set<String> tokenSet = RedisUtil.keys("_AUTH_*");
+		Set<String> tokenSet = null;
+//		Set<String> tokenSet = RedisUtil.keys("_AUTH_*");
 		StringBuffer sb = new StringBuffer();
 		sb.append("[");
 		for(String token : tokenSet) {
@@ -76,7 +77,8 @@ public class Controller {
 	@ResponseBody
 	public ActionResult<String> clearSecondLevelCache() {
 		try {
-			Set<String> loginToken = RedisUtil.keys("_AUTH_*");
+//			Set<String> loginToken = RedisUtil.keys("_AUTH_*");
+			Set<String> loginToken = null;
 			Map<String, String> tokenValueMap = new HashMap<>();
 			for (String token : loginToken) {
 				tokenValueMap.put(token, RedisUtil.get(token));
