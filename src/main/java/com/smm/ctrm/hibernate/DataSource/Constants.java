@@ -21,4 +21,14 @@ public class Constants {
 	 * Oracle驱动类名
 	 */
 	public static final String OracleDriver = "oracle.jdbc.driver.OracleDriver";
+	
+	/**
+     * mysql
+     */
+    public static final String Mysql = "Mysql";
+    
+    /**
+     * Oracle驱动类名
+     */
+    public static final String MysqlDriver = "com.mysql.jdbc.Driver";
 }

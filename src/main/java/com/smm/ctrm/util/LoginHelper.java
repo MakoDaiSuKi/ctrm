@@ -42,8 +42,9 @@ public class LoginHelper {
 			/**
 			 * 从缓存获取用户信息
 			 */
-			String token = RedisUtil.get(cacheKey);
+//			String token = RedisUtil.get(cacheKey);
 
+			String token = null;
 			if (token != null && StringUtils.isNotBlank(token)) {
 				try {
 					loginInfo = (LoginInfoToken) JSONUtil.doConvertStringToBean(token, LoginInfoToken.class);
@@ -99,7 +100,7 @@ public class LoginHelper {
 			BeanUtils.copyProperties(loginInfo, loginInfoToken);
 			String json = JSONUtil.doConvertBeanToString(loginInfoToken);
 			logger.info("准备存入redis.");
-			RedisUtil.set(GetCacheKey(loginInfo.getAccount()), json, expireMin);
+//			RedisUtil.set(GetCacheKey(loginInfo.getAccount()), json, expireMin);
 		} catch (Exception e) {
 			e.printStackTrace();
 			logger.error("SignIn2方法异常:", e);
@@ -114,7 +115,7 @@ public class LoginHelper {
 	 */
 	public static void SingOut(LoginInfoToken loginInfo) {
 		String cacheKey = GetCacheKey(loginInfo.getAccount());
-		RedisUtil.delete(cacheKey);
+//		RedisUtil.delete(cacheKey);
 	}
 
 	/**
@@ -168,7 +169,8 @@ public class LoginHelper {
 		Token tokenResult = new Token();
 		// 用户是否登录
 		String cacheKey = GetCacheKey(clientLoginInfo.getAccount());
-		String token = RedisUtil.get(cacheKey);
+//		String token = RedisUtil.get(cacheKey);
+		String token = null;
 		if (token == null || StringUtils.isBlank(token)) {
 			tokenResult.setIsValid(false);
 			tokenResult.setStatus(Token.UNAUTHORIZED);

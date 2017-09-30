@@ -21,7 +21,7 @@ public class DynamicDataSource extends AbstractRoutingDataSource {
 
 	@Override
 	public void setDefaultTargetDataSource(Object defaultTargetDataSource) {
-//		super.setDefaultTargetDataSource(defaultTargetDataSource);
+		super.setDefaultTargetDataSource(defaultTargetDataSource);
 	}
 
 	@Override

@@ -6,11 +6,6 @@ import java.util.Scanner;
 
 import org.apache.log4j.Logger;
 
-import com.artofsolving.jodconverter.DocumentConverter;
-import com.artofsolving.jodconverter.openoffice.connection.OpenOfficeConnection;
-import com.artofsolving.jodconverter.openoffice.connection.SocketOpenOfficeConnection;
-import com.artofsolving.jodconverter.openoffice.converter.OpenOfficeDocumentConverter;
-
 public class FileUtil {
 
 	private static Logger logger = Logger.getLogger(FileUtil.class);
@@ -66,9 +61,9 @@ public class FileUtil {
 			 */
 			// Process pro = Runtime.getRuntime().exec(command);
 
-			OpenOfficeConnection connection = new SocketOpenOfficeConnection(
-					PropertiesUtil.getString("OpenOffice.host"), PropertiesUtil.getInteger("OpenOffice.port"));
-			connection.connect();
+//			OpenOfficeConnection connection = new SocketOpenOfficeConnection(
+//					PropertiesUtil.getString("OpenOffice.host"), PropertiesUtil.getInteger("OpenOffice.port"));
+//			connection.connect();
 
 			// 如果目标路径不存在, 则新建该路径
 			File outputFile = new File(destFile);
@@ -77,11 +72,11 @@ public class FileUtil {
 			}
 
 			// convert
-			DocumentConverter converter = new OpenOfficeDocumentConverter(connection);
-			converter.convert(inputFile, outputFile);
+//			DocumentConverter converter = new OpenOfficeDocumentConverter(connection);
+//			converter.convert(inputFile, outputFile);
 
 			// close the connection
-			connection.disconnect();
+//			connection.disconnect();
 
 			// 关闭OpenOffice服务的进程
 			// pro.destroy();

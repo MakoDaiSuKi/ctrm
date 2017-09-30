@@ -8,19 +8,15 @@ package com.smm.ctrm.domain;
 
 import java.io.Serializable;
 import java.util.Date;
-import java.util.UUID;
 
 import javax.persistence.Column;
 import javax.persistence.GeneratedValue;
+import javax.persistence.GenerationType;
 import javax.persistence.Id;
 import javax.persistence.MappedSuperclass;
 
-import org.hibernate.annotations.GenericGenerator;
-
-import com.fasterxml.jackson.annotation.JsonIdentityInfo;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.ObjectIdGenerators;
 import com.smm.ctrm.util.DateUtil;
 
 @MappedSuperclass
@@ -31,10 +27,12 @@ public abstract class HibernateEntity implements Serializable {
 	/**
 	 * 主键
 	 */
+//	@Id
+//	@GenericGenerator(name = "generator", strategy = "guid", parameters = {})
+//	@GeneratedValue(generator = "generator")
+//	@Column(name = "Id", columnDefinition = "uniqueidentifier")
 	@Id
-	@GenericGenerator(name = "generator", strategy = "guid", parameters = {})
-	@GeneratedValue(generator = "generator")
-	@Column(name = "Id", columnDefinition = "uniqueidentifier")
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
 	@JsonProperty(value = "Id")
 	private String Id;
 	/**
