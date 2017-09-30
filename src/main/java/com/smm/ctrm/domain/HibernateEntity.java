@@ -11,9 +11,10 @@ import java.util.Date;
 
 import javax.persistence.Column;
 import javax.persistence.GeneratedValue;
-import javax.persistence.GenerationType;
 import javax.persistence.Id;
 import javax.persistence.MappedSuperclass;
+
+import org.hibernate.annotations.GenericGenerator;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -27,12 +28,10 @@ public abstract class HibernateEntity implements Serializable {
 	/**
 	 * 主键
 	 */
-//	@Id
-//	@GenericGenerator(name = "generator", strategy = "guid", parameters = {})
-//	@GeneratedValue(generator = "generator")
-//	@Column(name = "Id", columnDefinition = "uniqueidentifier")
 	@Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+	@GenericGenerator(name = "generator", strategy = "guid", parameters = {})
+	@GeneratedValue(generator = "generator")
+	@Column(name = "Id", columnDefinition = "uniqueidentifier")
 	@JsonProperty(value = "Id")
 	private String Id;
 	/**
